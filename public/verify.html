@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Verify receipt - FEES</title>
+<link rel="icon" href="/icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<style>
+:root{
+  --bg:#000;--card:#0d0d0f;--line:rgba(255,255,255,.08);--tx:#fff;--mut:rgba(235,235,245,.55);--dim:rgba(235,235,245,.32);
+  --g:#30d158;--r:#ff453a;--y:#ffd60a;--o:#ff9f0a;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Inter","Segoe UI",Roboto,system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--font);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{min-height:100vh;min-height:100dvh}
+.shell{max-width:440px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;padding:0 18px max(28px,env(safe-area-inset-bottom))}
+body.embed .shell{min-height:0;padding-bottom:16px}
+
+/* top bar */
+.bar-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:max(14px,env(safe-area-inset-top)) 0 10px;background:linear-gradient(#000 70%,rgba(0,0,0,0))}
+body.embed .bar-top{padding-top:12px}
+.back{display:inline-flex;align-items:center;gap:2px;height:38px;padding:0 14px 0 8px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.07);color:#fff;font:600 15px var(--font);cursor:pointer;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);transition:transform .15s ease,background .15s ease}
+.back:active{transform:scale(.94);background:rgba(255,255,255,.14)}
+.back:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.back svg{width:20px;height:20px}
+.top-t{margin-left:auto;font:600 11px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+
+/* main */
+main{flex:1;display:flex;flex-direction:column;align-items:stretch;text-align:center;padding-top:10px}
+.hero{display:flex;flex-direction:column;align-items:center;padding:18px 0 6px;position:relative}
+.glow{position:absolute;top:-30px;left:50%;width:260px;height:260px;margin-left:-130px;border-radius:50%;filter:blur(70px);opacity:.28;pointer-events:none;background:currentColor}
+.ic{position:relative;width:92px;height:92px;margin-bottom:20px}
+.ic svg{width:100%;height:100%;display:block;overflow:visible}
+.ic::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid currentColor;opacity:0;animation:pulse 1.8s ease-out .5s 2}
+.ring{stroke-dasharray:232;stroke-dashoffset:232;animation:draw .7s cubic-bezier(.3,.7,.2,1) forwards}
+.mark{stroke-dasharray:72;stroke-dashoffset:72;animation:draw .45s ease .5s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pulse{from{opacity:.45;transform:scale(.92)}to{opacity:0;transform:scale(1.55)}}
+.bad .ic{animation:shake .5s ease .65s}
+@keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+h1{position:relative;margin:0;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-.8px}
+.sub{position:relative;margin:8px auto 0;max-width:290px;font-size:14px;line-height:1.5;color:var(--mut)}
+
+.amt-wrap{margin:26px 0 4px}
+.amt-l{font:600 11px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.amt{margin:6px 0 0;font:800 58px/1 var(--font);letter-spacing:-2.5px;font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:700;border:1px solid transparent}
+.pill i{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor}
+
+.card{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:26px;overflow:hidden;text-align:left}
+.row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:15px 18px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row span{flex-shrink:0;font-size:13px;font-weight:500;color:var(--mut)}
+.row b{font-size:15px;font-weight:600;text-align:right;word-break:break-word;letter-spacing:-.1px}
+.row b.mono{font-family:var(--mono);font-size:13.5px;letter-spacing:0}
+
+.prog{padding:16px 18px 18px}
+.prog-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.prog-top span{font-size:13px;font-weight:500;color:var(--mut)}
+.prog-top b{font:700 14px var(--font);font-variant-numeric:tabular-nums}
+.track{height:8px;margin-top:12px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden}
+.track i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#0a84ff,#bf5af2 55%,#ff375f);transition:width 1.1s cubic-bezier(.2,.8,.2,1) .5s}
+.prog-pct{margin-top:10px;font:600 11px var(--mono);letter-spacing:.08em;color:var(--dim);text-align:right}
+
+.ft{margin-top:auto;padding-top:26px;display:flex;align-items:center;justify-content:center;gap:7px;font:600 10px var(--mono);letter-spacing:.2em;color:var(--dim)}
+.ft img{width:15px;height:15px;object-fit:contain;opacity:.6}
+
+.in{opacity:0;transform:translateY(12px);animation:rise .6s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--n,0)*80ms + 200ms)}
+@keyframes rise{to{opacity:1;transform:none}}
+.spin{width:36px;height:36px;border:3px solid rgba(255,255,255,.12);border-top-color:#fff;border-radius:50%;margin:0 auto 16px;animation:rot .8s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.load{margin:auto;padding:60px 0}
+.btn2{margin-top:22px;align-self:center;height:46px;padding:0 24px;border-radius:999px;border:0;background:#fff;color:#000;font:700 15px var(--font);cursor:pointer;transition:transform .15s}
+.btn2:active{transform:scale(.95)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-delay:0s!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="bar-top">
+    <button type="button" class="back" id="back" aria-label="Go back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Back</button>
+    <span class="top-t">Receipt check</span>
+  </div>
+  <main id="app" aria-live="polite"><div class="load"><div class="spin"></div><p class="sub">Verifying with the live ledger</p></div></main>
+</div>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search), app = document.getElementById('app');
+  var EMBED = q.get('embed') === '1';
+  if (EMBED) document.body.classList.add('embed');
+  var inr = function (n) { return '\u20B9' + Number(n || 0).toLocaleString('en-IN'); };
+  var el = function (t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  var N = function (e, n) { e.style.setProperty('--n', n); return e; };
+
+  /* back button: inside the app popup it closes the popup; on a normal page it goes back (or home) */
+  document.getElementById('back').addEventListener('click', function () {
+    if (EMBED) { try { if (window.parent && window.parent !== window && typeof window.parent.closeVerifyModal === 'function') { window.parent.closeVerifyModal(); return; } } catch (e) {} }
+    if (history.length > 1) history.back(); else location.href = '/';
+  });
+
+  function icon(ok, col) {
+    var d = el('div', 'ic'); d.style.color = col;
+    var mark = ok ? 'M27 42 l10 10 l19 -21' : 'M30 30 L50 50 M50 30 L30 50';
+    d.innerHTML = '<svg viewBox="0 0 80 80" fill="none" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="40" cy="40" r="37" fill="' + col + '" fill-opacity=".13"/><circle class="ring" cx="40" cy="40" r="37" stroke="' + col + '" transform="rotate(-90 40 40)"/><path class="mark" d="' + mark + '" stroke="' + col + '"/></svg>';
+    return d;
+  }
+  function head(ok, col, title, sub) {
+    app.textContent = ''; app.className = ok ? '' : 'bad';
+    var hero = el('div', 'hero');
+    var g = el('div', 'glow'); g.style.color = col; hero.appendChild(g);
+    hero.appendChild(icon(ok, col));
+    var h = el('h1', 'in', title); h.style.color = col; hero.appendChild(h);
+    hero.appendChild(N(el('p', 'sub in', sub), 1));
+    app.appendChild(hero);
+  }
+  function rows(list, n) {
+    var box = N(el('div', 'card in'), n);
+    list.forEach(function (r) { var row = el('div', 'row'); row.appendChild(el('span', '', r[0])); var b = el('b', r[3] ? 'mono' : '', r[1]); if (r[2]) b.style.color = r[2]; row.appendChild(b); box.appendChild(row); });
+    return box;
+  }
+  function footer() {
+    if (EMBED) return;
+    var f = el('div', 'ft'), lg = document.createElement('img');
+    lg.src = '/icons/logo.png'; lg.alt = ''; lg.width = 15; lg.height = 15;
+    f.appendChild(lg); f.appendChild(document.createTextNode('FEES \u00B7 RECEIPT VERIFICATION'));
+    app.appendChild(f);
+  }
+  function retry() {
+    var b = el('button', 'btn2 in', 'Try again'); b.type = 'button'; N(b, 2);
+    b.addEventListener('click', function () { location.reload(); });
+    app.appendChild(b);
+  }
+  function countUp(node, to) {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { node.textContent = inr(to); return; }
+    setTimeout(function () {
+      var t0 = performance.now(), ms = 900;
+      (function step(now) {
+        var p = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - p, 3);
+        node.textContent = inr(Math.round(to * e));
+        if (p < 1 && node.isConnected) requestAnimationFrame(step);
+      })(t0);
+    }, 350);
+  }
+
+  function fake() {
+    head(false, '#ff453a', 'Not verified', 'This receipt is fake, altered, or not in the ledger. Do not accept it.');
+    footer();
+    if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+  }
+  function offline(msg) {
+    head(false, '#ffd60a', 'Could not check', msg || 'Check your internet connection and scan again.');
+    retry(); footer();
+  }
+
+  function show(d) {
+    if (!d.valid) return fake();
+    var mode = d.cash > 0 && d.upi > 0 ? 'Cash + UPI' : d.upi > 0 ? 'UPI' : 'Cash';
+    if (d.status === 'DELETED') {
+      head(false, '#ff453a', 'Receipt deleted', 'This receipt was deleted by the admin and is not valid.');
+      app.appendChild(rows([['Receipt', d.id, '', 1], ['Student', d.student], ['Plan', d.plan], ['Reason', d.reason || 'Not given'], ['Deleted', d.deletedDate || '-']], 2));
+      footer(); return;
+    }
+    var voided = d.status === 'VOID', col = voided ? '#ff453a' : '#30d158';
+    var st = voided ? 'Voided' : d.due ? 'Partial \u00B7 ' + inr(d.due) + ' due' : d.extra ? 'Paid \u00B7 ' + inr(d.extra) + ' extra' : 'Paid in full';
+    var pc = voided ? '#ff453a' : d.due ? '#ff9f0a' : '#30d158';
+    head(!voided, col, voided ? 'Receipt voided' : 'Genuine receipt', voided ? 'This receipt is no longer valid.' : 'Verified against the live ledger.');
+
+    var aw = N(el('div', 'amt-wrap in'), 2);
+    aw.appendChild(el('div', 'amt-l', 'Amount paid'));
+    var a = el('div', 'amt', voided ? inr(d.total) : inr(0)); if (voided) a.style.textDecoration = 'line-through'; a.style.color = voided ? 'rgba(255,69,58,.9)' : '#fff';
+    aw.appendChild(a);
+    var pill = el('div', 'pill'); pill.style.color = pc; pill.style.background = pc + '1f'; pill.style.borderColor = pc + '40';
+    pill.appendChild(el('i')); pill.appendChild(document.createTextNode(st));
+    aw.appendChild(pill);
+    app.appendChild(aw);
+
+    app.appendChild(rows([
+      ['Student', d.student + ' \u00B7 #' + String(d.sl).padStart(2, '0')],
+      ['Plan', d.plan],
+      ['Receipt', d.id, '', 1],
+      ['Date', d.date + ', ' + d.time],
+      ['Paid by', mode]
+    ], 3));
+
+    var pct = d.target ? Math.min(100, Math.round(d.cum / d.target * 100)) : 0;
+    var pr = N(el('div', 'card prog in'), 4);
+    var top = el('div', 'prog-top'); top.appendChild(el('span', '', 'Plan progress')); top.appendChild(el('b', '', inr(d.cum) + ' / ' + inr(d.target)));
+    var tr = el('div', 'track'), fill = el('i'); tr.appendChild(fill);
+    pr.appendChild(top); pr.appendChild(tr); pr.appendChild(el('div', 'prog-pct', pct + '% COLLECTED'));
+    app.appendChild(pr);
+    footer();
+
+    if (!voided) countUp(a, d.total);
+    setTimeout(function () { fill.style.width = pct + '%'; }, 80);
+    if (navigator.vibrate) navigator.vibrate(voided ? [120, 60, 120] : [40, 40, 40]);
+  }
+
+  var id = (q.get('id') || '').slice(0, 20), k = (q.get('k') || '').slice(0, 40);
+  if (!k) return fake();
+  var t = setTimeout(function () { offline('The ledger is taking too long. Try again.'); }, 12000);
+  fetch('/api/index?op=verify&id=' + encodeURIComponent(id) + '&k=' + encodeURIComponent(k), { cache: 'no-store' })
+    .then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
+    .then(function (x) { clearTimeout(t); if (x.s === 429) return offline('Too many checks. Wait a minute and scan again.'); if (x.s >= 500) return offline(); show(x.j); })
+    .catch(function () { clearTimeout(t); offline(); });
+})();
+</script>
+</body>
+</html>
