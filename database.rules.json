@@ -1,0 +1,14 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "fees": {
+      "students":  { ".read": true },
+      "plans":     { ".read": true },
+      "receipts":  { ".read": true },
+      "counter":   { ".read": true },
+      "handovers": { ".read": true },
+      "settled":   { ".read": true }
+    }
+  }
+}
