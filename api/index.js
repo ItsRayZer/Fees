@@ -8,6 +8,7 @@
  *   FIREBASE_DATABASE_URL     optional, defaults to the mac-fee database
  */
 const crypto = require('crypto');
+const PHONEBOOK = require('../lib/phonebook.js');
 
 const DB_URL = process.env.FIREBASE_DATABASE_URL || 'https://mac-fee-default-rtdb.asia-southeast1.firebasedatabase.app';
 const TZ = 'Asia/Kolkata';
@@ -123,6 +124,39 @@ const fmtDate = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'num
 const fmtTime = (d) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
 const list = (o) => Object.values(o || {}).filter(Boolean);
 
+// Extra money already paid back to students, split by how it was returned (cash / UPI).
+// Old entries have no split: they count as cash.
+function backBy(settled, planId) {
+  let cash = 0, upi = 0;
+  list(settled).forEach(e => {
+    if (e.planId !== planId) return;
+    const c = Number(e.cash) || 0, u = Number(e.upi) || 0;
+    cash += c + Math.max(0, (Number(e.amount) || 0) - c - u); upi += u;
+  });
+  return { cash, upi };
+}
+
+const settleKeyOf = (planId, sl) => (planId + '__s' + sl).replace(/[.#$\[\]\/]/g, '_');
+
+// Extra money students handed over (above the fee) that has not been paid back yet.
+function heldExtra(plan, rec, st) {
+  const by = {};
+  list(rec).filter(x => x.planId === plan.id && x.status === 'VALID').forEach(x => { by[x.sl] = (by[x.sl] || 0) + x.total; });
+  return Object.keys(by).reduce((a, sl) => {
+    const back = Number(((st || {})[settleKeyOf(plan.id, sl)] || {}).amount) || 0;
+    return a + Math.max(0, by[sl] - plan.target - back);
+  }, 0);
+}
+
+// Removing a valid receipt must not leave money that was already paid back uncovered.
+async function backGuard(r) {
+  const [plan, rec, st] = await Promise.all([val('fees/plans/' + r.planId), val('fees/receipts'), val('fees/settled')]);
+  const back = Number(((st || {})[settleKeyOf(r.planId, r.sl)] || {}).amount) || 0;
+  if (!plan || !back) return null;
+  const after = list(rec).filter(x => x.planId === r.planId && x.sl === r.sl && x.status === 'VALID' && x.id !== r.id).reduce((a, x) => a + x.total, 0);
+  return after - plan.target < back ? `Undo the ₹${back} pay-back for this student first` : null;
+}
+
 function installment(all, r) {
   const prior = all.filter(x => x.planId === r.planId && x.sl === r.sl && x.status === 'VALID' && numId(x) < numId(r));
   const prev = prior.reduce((a, x) => a + x.total, 0), cum = prev + r.total, diff = cum - r.planTarget;
@@ -156,7 +190,7 @@ async function verify(req, res, q) {
 }
 
 /* ---------- admin operations ---------- */
-const SENSITIVE = new Set(['issue', 'delete', 'restore']);   // need PIN again, every time
+const SENSITIVE = new Set(['issue', 'delete', 'restore', 'settle']);   // need PIN again, every time
 
 async function migrate() {
   // moves phone numbers out of public data (one time)
@@ -173,7 +207,16 @@ async function migrate() {
 }
 
 const OPS = {
-  async phones() { return { phones: (await val('fees_private/phones')) || {} }; },
+  async phones() {
+    // saved numbers win; the class phone book only fills gaps, and only for students that already exist
+    const [saved, students] = await Promise.all([val('fees_private/phones'), val('fees/students')]);
+    const out = Object.assign({}, saved || {});
+    Object.keys(students || {}).forEach(k => {
+      const sl = students[k] && students[k].sl;
+      if (Number.isInteger(sl) && !out['p' + sl] && PHONEBOOK[sl]) out['p' + sl] = PHONEBOOK[sl];
+    });
+    return { phones: out };
+  },
 
   async issue(d) {
     const db = getDb();
@@ -191,7 +234,7 @@ const OPS = {
     if (phone && (phone.length < 10 || phone.length > 13)) return { code: 400, error: 'Check the phone number' };
     const r = {
       id, planId: plan.id, planTitle: plan.title, planTarget: plan.target, sl, studentName: student.name,
-      date: fmtDate(now), timestamp: fmtTime(now), cash, upi, upiId: (upi > 0 && clean(d.upiRef, 40)) || 'N/A', total: cash + upi,
+      date: fmtDate(now), timestamp: fmtTime(now), ts: now.getTime(), cash, upi, upiId: (upi > 0 && clean(d.upiRef, 40)) || 'N/A', total: cash + upi,
       collector: plan.officer, secKey: 'SEC-' + hmac(`${id}|${sl}|${cash + upi}|${now.getTime()}|${crypto.randomBytes(8).toString('hex')}`, 12).toUpperCase(),
       status: 'VALID'
     };
@@ -205,6 +248,7 @@ const OPS = {
     if (!REC.test(d.id)) return { code: 400, error: 'Bad id' };
     const r = await val('fees/receipts/' + d.id);
     if (!r || (r.status !== 'VALID' && r.status !== 'VOID')) return { code: 409, error: 'Cannot change this receipt' };
+    if (r.status === 'VALID') { const g = await backGuard(r); if (g) return { code: 409, error: g }; }
     const next = r.status === 'VALID' ? 'VOID' : 'VALID';
     await getDb().ref('fees/receipts/' + d.id + '/status').set(next);
     return { status: next };
@@ -216,6 +260,7 @@ const OPS = {
     if (!reason) return { code: 400, error: 'Reason required' };
     const r = await val('fees/receipts/' + d.id);
     if (!r || r.status === 'DELETED') return { code: 409, error: 'Cannot delete this receipt' };
+    if (r.status === 'VALID') { const g = await backGuard(r); if (g) return { code: 409, error: g }; }
     const now = new Date();
     await getDb().ref('fees/receipts/' + d.id).update({
       status: 'DELETED', deleteReason: reason, deleteCat: d.test ? 'TEST' : null, deletedAt: now.getTime(), deletedDate: fmtDate(now)
@@ -233,12 +278,41 @@ const OPS = {
 
   async settle(d) {
     const sl = int(d.sl, 1, 9999), planId = clean(d.planId, 60);
-    const [plan, rec] = await Promise.all([val('fees/plans/' + planId), val('fees/receipts')]);
+    const [plan, rec, hs, st, student] = await Promise.all([val('fees/plans/' + planId), val('fees/receipts'), val('fees/handovers'), val('fees/settled'), val('fees/students/s' + sl)]);
     if (!sl || !plan) return { code: 400, error: 'Bad request' };
-    const paid = list(rec).filter(x => x.planId === planId && x.sl === sl && x.status === 'VALID').reduce((a, x) => a + x.total, 0);
-    if (paid <= plan.target) return { code: 409, error: 'No extra money' };
-    const now = new Date(), key = (planId + '__s' + sl).replace(/[.#$\[\]\/]/g, '_');
-    await getDb().ref('fees/settled/' + key).set({ planId, sl, amount: paid - plan.target, ts: now.getTime(), date: fmtDate(now) });
+    const valid = list(rec).filter(x => x.planId === planId && x.status === 'VALID');
+    const paid = valid.filter(x => x.sl === sl).reduce((a, x) => a + x.total, 0);
+    const key = (planId + '__s' + sl).replace(/[.#$\[\]\/]/g, '_'), ex = (st || {})[key] || {};
+    const open = paid - plan.target - (Number(ex.amount) || 0);
+    if (open <= 0) return { code: 409, error: 'No extra money left to pay back' };
+    const amt = d.amount == null ? open : int(d.amount, 1, open);
+    if (!amt) return { code: 400, error: `Enter an amount from 1 to ${open}` };
+    const mode = d.mode === 'GPAY' ? 'GPAY' : 'CASH', field = mode === 'CASH' ? 'cash' : 'upi';
+    const inn = valid.reduce((a, x) => a + x[field], 0);
+    const out = list(hs).filter(h => h.planId === planId && h.mode === mode).reduce((a, h) => a + h.amount, 0);
+    const avail = inn - out - backBy(st, planId)[field];
+    if (amt > avail) return { code: 409, error: `Only ₹${Math.max(0, avail)} ${mode === 'CASH' ? 'cash' : 'UPI'} available to pay back` };
+    const legacy = (ex.cash == null && ex.upi == null) ? (Number(ex.amount) || 0) : 0, now = new Date();
+    const logId = 't' + now.getTime() + crypto.randomBytes(2).toString('hex').toUpperCase();
+    await getDb().ref('fees/settled/' + key).set({
+      planId, sl, studentName: (student && student.name) || ex.studentName || '',
+      amount: (Number(ex.amount) || 0) + amt,
+      cash: (Number(ex.cash) || 0) + legacy + (mode === 'CASH' ? amt : 0), upi: (Number(ex.upi) || 0) + (mode === 'GPAY' ? amt : 0),
+      ts: now.getTime(), date: fmtDate(now),
+      log: Object.assign({}, ex.log || {}, {
+        [logId]: {
+          id: logId,
+          planId,
+          sl,
+          studentName: (student && student.name) || ex.studentName || '',
+          amount: amt,
+          mode,
+          ts: now.getTime(),
+          date: fmtDate(now),
+          time: fmtTime(now)
+        }
+      })
+    });
     return {};
   },
   async unsettle(d) {
@@ -251,12 +325,20 @@ const OPS = {
   async handover(d) {
     const amt = int(d.amount, 1, 1000000), mode = d.mode === 'GPAY' ? 'GPAY' : d.mode === 'CASH' ? 'CASH' : null, planId = clean(d.planId, 60);
     if (!amt || !mode) return { code: 400, error: 'Enter a valid amount' };
-    const [plan, rec, hs] = await Promise.all([val('fees/plans/' + planId), val('fees/receipts'), val('fees/handovers')]);
+    const [plan, rec, hs, st] = await Promise.all([val('fees/plans/' + planId), val('fees/receipts'), val('fees/handovers'), val('fees/settled')]);
     if (!plan) return { code: 400, error: 'Unknown plan' };
     const field = mode === 'CASH' ? 'cash' : 'upi';
-    const inn = list(rec).filter(x => x.planId === planId && x.status === 'VALID').reduce((a, x) => a + x[field], 0);
-    const out = list(hs).filter(h => h.planId === planId && h.mode === mode).reduce((a, h) => a + h.amount, 0);
-    if (amt > inn - out) return { code: 409, error: `Only ₹${Math.max(0, inn - out)} available` };
+    const valid = list(rec).filter(x => x.planId === planId && x.status === 'VALID');
+    const inn = valid.reduce((a, x) => a + x[field], 0);
+    const outs = list(hs).filter(h => h.planId === planId);
+    const out = outs.filter(h => h.mode === mode).reduce((a, h) => a + h.amount, 0);
+    const back = backBy(st, planId);
+    const avail = inn - out - back[field];
+    if (amt > avail) return { code: 409, error: `Only \u20b9${Math.max(0, avail)} available` };
+    // money students gave above the fee is not Miss's: keep it in hand until it is paid back
+    const handTotal = valid.reduce((a, x) => a + x.total, 0) - outs.reduce((a, h) => a + h.amount, 0) - back.cash - back.upi;
+    const held = heldExtra(plan, rec, st);
+    if (handTotal - amt < held) return { code: 409, error: `Only \u20b9${Math.max(0, handTotal - held)} can be submitted. \u20b9${held} is extra money still to be paid back to students.` };
     const now = new Date(), id = 'H' + now.getTime().toString(36).toUpperCase() + crypto.randomBytes(2).toString('hex').toUpperCase();
     await getDb().ref('fees/handovers/' + id).set({ id, planId, mode, amount: amt, note: clean(d.note, 80), date: fmtDate(now), timestamp: fmtTime(now), ts: now.getTime() });
     return {};
