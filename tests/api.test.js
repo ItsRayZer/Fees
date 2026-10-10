@@ -107,6 +107,15 @@ srv.listen(0, async () => {
     ok(r.s === 200 && db.root.fees.students.s70.name === 'NEW KID', 'add student');
     r = await call(P, { op: 'addPlan', title: 'class trip', target: 500, officer: 'Aben' }, { cookie });
     ok(r.s === 200 && Object.values(db.root.fees.plans).some(p => p.title === 'CLASS TRIP'), 'add plan');
+    r = await call(P, { op: 'settle', planId: 'plan1', sl: 6 }, { cookie });
+    ok(r.s === 401, 'settle needs the PIN (401 without PIN)');
+    r = await call(P, { op: 'settle', planId: 'plan1', sl: 6, pin: PIN }, { cookie });
+    ok(r.s === 200, 'settle succeeds with PIN');
+    const sKey = 'plan1__s6';
+    const sRecord = db.root.fees.settled && db.root.fees.settled[sKey];
+    ok(sRecord && sRecord.amount > 0, 'settle saves amount in fees/settled');
+    ok(sRecord && sRecord.log && Object.keys(sRecord.log).length > 0, 'settle creates individual repayment log entry');
+
     for (const bad of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) { r = await call(P, { op: bad }, { cookie }); ok(r.s === 404, `op "${bad}" is not an action`); }
     r = await call(P, { op: 'logout' }, { cookie });
     ok(/Max-Age=0/.test(r.cookie) || r.j.admin === false, 'logout clears session');
