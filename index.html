@@ -117,6 +117,25 @@ nav button.on { background: #fff; color: #000; }
 #vm,#rm,#am,#sm,#pm,#pay-m{animation:moFade .22s ease both}
 #vm>div,#am>div,#sm>form,#pm>form,#pay-m>div,#rm>div{animation:moPop .38s cubic-bezier(.2,.8,.2,1) both}
 
+/* ---------- Receipt carousel ---------- */
+.rc-track{display:flex;transition:transform .38s cubic-bezier(.25,.8,.25,1);will-change:transform;touch-action:pan-y pinch-zoom}
+.rc-slide{min-width:100%;width:100%;flex-shrink:0}
+.rc-dots{display:flex;justify-content:center;gap:6px;padding:6px 0 2px}
+.rc-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.25);transition:.2s}
+.rc-dot.on{background:#fff;width:18px;border-radius:5px}
+
+/* ---------- Timeline (History) ---------- */
+.tl-line{position:relative;padding-left:28px}
+.tl-line::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.05))}
+.tl-node{position:absolute;left:0;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;border:2px solid #000}
+.tl-item{position:relative;margin-bottom:16px}
+.tl-time{font:700 10px 'JetBrains Mono',monospace;color:rgba(255,255,255,.35);letter-spacing:.04em}
+
+/* ---------- Settle modal ---------- */
+#settle-m{animation:moFade .22s ease both}
+#settle-m>div{animation:moPop .38s cubic-bezier(.2,.8,.2,1) both}
+
+
 /* ---------- QR scan / verify ---------- */
 .v-scan{display:flex;flex-direction:column;align-items:center;gap:14px;padding:12px 0 6px}
 .v-frame{position:relative;width:140px;height:140px;border-radius:22px;background:rgba(255,255,255,.04);overflow:hidden}
@@ -254,16 +273,19 @@ nav button.on { background: #fff; color: #000; }
     <div id="ledger-summary" class="grid grid-cols-2 gap-2"></div>
     <div class="flex items-center gap-2">
       <select id="ledger-filter" class="inp !w-auto !py-2 !px-3 text-xs flex-1" onchange="filterLedger(this.value)">
-        <option value="ALL">All receipts</option>
+        <option value="ALL">All events & receipts</option>
+        <option value="TIMELINE">Timeline View</option>
         <option value="FULL">Paid in full</option>
         <option value="PARTIAL">Partial</option>
         <option value="EXTRA">Extra money</option>
+        <option value="SETTLED">Settled repayments</option>
+        <option value="HANDOVER">Given to Miss</option>
         <option value="VOID">Void</option>
         <option value="DELETED" id="opt-del" hidden>Deleted (admin)</option>
         <option value="CASH">Cash payments</option>
         <option value="UPI">UPI payments</option>
       </select>
-      <div class="vs" data-for="ledger"><button type="button" class="vb" data-v="big" title="Big boxes" aria-label="Big boxes" onclick="setView('ledger','big')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/></svg></button><button type="button" class="vb" data-v="box" title="2 boxes per row" aria-label="2 boxes per row" onclick="setView('ledger','box')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg></button><button type="button" class="vb" data-v="tile" title="3-4 small boxes per row" aria-label="3-4 small boxes per row" onclick="setView('ledger','tile')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="5" height="5" rx="1.2"/><rect x="9.5" y="3" width="5" height="5" rx="1.2"/><rect x="16" y="3" width="5" height="5" rx="1.2"/><rect x="3" y="9.5" width="5" height="5" rx="1.2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1.2"/><rect x="16" y="9.5" width="5" height="5" rx="1.2"/><rect x="3" y="16" width="5" height="5" rx="1.2"/><rect x="9.5" y="16" width="5" height="5" rx="1.2"/><rect x="16" y="16" width="5" height="5" rx="1.2"/></svg></button><button type="button" class="vb" data-v="list" title="List" aria-label="List" onclick="setView('ledger','list')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="3" y="4.5" width="3" height="3" rx="1"/><rect x="8.5" y="4.5" width="12.5" height="3" rx="1.2"/><rect x="3" y="10.5" width="3" height="3" rx="1"/><rect x="8.5" y="10.5" width="12.5" height="3" rx="1.2"/><rect x="3" y="16.5" width="3" height="3" rx="1"/><rect x="8.5" y="16.5" width="12.5" height="3" rx="1.2"/></svg></button></div>
+      <div class="vs" data-for="ledger"><button type="button" class="vb" data-v="timeline" title="Timeline view" aria-label="Timeline view" onclick="setView('ledger','timeline')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="6" y1="9" x2="6" y2="15" stroke="currentColor" stroke-width="2"/><line x1="12" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="2"/><line x1="12" y1="18" x2="20" y2="18" stroke="currentColor" stroke-width="2"/></svg></button><button type="button" class="vb" data-v="big" title="Big boxes" aria-label="Big boxes" onclick="setView('ledger','big')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/></svg></button><button type="button" class="vb" data-v="box" title="2 boxes per row" aria-label="2 boxes per row" onclick="setView('ledger','box')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg></button><button type="button" class="vb" data-v="tile" title="3-4 small boxes per row" aria-label="3-4 small boxes per row" onclick="setView('ledger','tile')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="5" height="5" rx="1.2"/><rect x="9.5" y="3" width="5" height="5" rx="1.2"/><rect x="16" y="3" width="5" height="5" rx="1.2"/><rect x="3" y="9.5" width="5" height="5" rx="1.2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1.2"/><rect x="16" y="9.5" width="5" height="5" rx="1.2"/><rect x="3" y="16" width="5" height="5" rx="1.2"/><rect x="9.5" y="16" width="5" height="5" rx="1.2"/><rect x="16" y="16" width="5" height="5" rx="1.2"/></svg></button><button type="button" class="vb" data-v="list" title="List" aria-label="List" onclick="setView('ledger','list')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="3" y="4.5" width="3" height="3" rx="1"/><rect x="8.5" y="4.5" width="12.5" height="3" rx="1.2"/><rect x="3" y="10.5" width="3" height="3" rx="1"/><rect x="8.5" y="10.5" width="12.5" height="3" rx="1.2"/><rect x="3" y="16.5" width="3" height="3" rx="1"/><rect x="8.5" y="16.5" width="12.5" height="3" rx="1.2"/></svg></button></div>
     </div>
     <input id="ledger-search" class="inp" placeholder="Search receipts by name, roll no or REC ID" oninput="renderLedger()">
     <div id="ledger-list"></div>
@@ -365,102 +387,24 @@ nav button.on { background: #fff; color: #000; }
       Preview mode. Enter PIN to confirm and issue.
     </div>
 
-    <!-- AMOLED TICKET PASS CARD -->
-    <div id="printable-receipt-card" class="relative rounded-[32px] overflow-hidden font-sans text-white shadow-2xl" style="background:#000">
-      <div class="relative overflow-hidden" style="background:radial-gradient(120% 70% at 85% -10%,rgba(191,90,242,.65) 0%,rgba(191,90,242,0) 60%),radial-gradient(100% 70% at 0% 30%,rgba(10,132,255,.55) 0%,rgba(10,132,255,0) 60%),radial-gradient(90% 60% at 60% 110%,rgba(255,55,95,.45) 0%,rgba(255,55,95,0) 60%),#000">
-        
-        <div class="absolute inset-0 overflow-hidden pointer-events-none select-none">
-          <div style="transform:rotate(-14deg) scale(1.3);margin-top:-40px">
-            <div class="font-black whitespace-nowrap leading-none" style="font-size:54px;color:rgba(255,255,255,.06);letter-spacing:-2px">
-              <div style="margin-left:-30px">FEES FEES FEES FEES</div>
-              <div style="margin-left:-110px">FEES FEES FEES FEES</div>
-              <div style="margin-left:-10px">FEES FEES FEES FEES</div>
-              <div style="margin-left:-90px">FEES FEES FEES FEES</div>
-              <div style="margin-left:-40px">FEES FEES FEES FEES</div>
-              <div style="margin-left:-120px">FEES FEES FEES FEES</div>
-              <div style="margin-left:-20px">FEES FEES FEES FEES</div>
-            </div>
-          </div>
-        </div>
+    <!-- CAROUSEL HEADER: dots + title + arrows -->
+    <div id="rc-nav" class="hide flex items-center justify-between px-1">
+      <button type="button" class="btn b-ghost !py-1.5 !px-3 text-xs" onclick="rcMove(-1)">‹ Prev</button>
+      <div id="rc-dots" class="rc-dots"></div>
+      <button type="button" class="btn b-ghost !py-1.5 !px-3 text-xs" onclick="rcMove(1)">Next ›</button>
+    </div>
 
-        <div class="relative" style="background:#d6ff3f;color:#000">
-          <div class="font-mono font-black text-[10px] tracking-[0.25em] whitespace-nowrap overflow-hidden py-1.5 px-3">
-            FEE RECEIPT + FEE RECEIPT + FEE RECEIPT + FEE RECEIPT + FEE RECEIPT
-          </div>
-        </div>
-
-        <div class="relative p-6 pb-7 space-y-5">
-          <div class="flex items-center justify-between">
-            <span class="font-mono text-[10px] font-bold tracking-widest px-3 py-1 rounded-full" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);display:inline-flex;align-items:center;gap:6px"><img src="/icons/logo.png" alt="" width="14" height="14" style="width:14px;height:14px;object-fit:contain">RECEIPT</span>
-            <span id="mI" class="font-mono text-[11px] font-bold px-3 py-1 rounded-full" style="background:#fff;color:#000">REC-1001</span>
-          </div>
-          <div>
-            <div class="font-mono text-[10px] tracking-[0.2em] uppercase" style="color:rgba(255,255,255,.55)">fee plan</div>
-            <div id="mP" class="font-black uppercase leading-[0.95] tracking-tight mt-1" style="font-size:36px">EXAM FEE 2026</div>
-          </div>
-          <div class="flex items-end justify-between gap-3">
-            <div>
-              <div class="font-mono text-[10px] tracking-[0.2em] uppercase" style="color:rgba(255,255,255,.55)">you paid</div>
-              <div id="mT" class="font-black tracking-tighter leading-none mt-1" style="font-size:48px">₹0</div>
-            </div>
-            <span id="mB" class="font-mono font-black text-[10px] px-3 py-1.5 rounded-full whitespace-nowrap" style="color:#000;transform:rotate(-6deg);background:#30d158">PAID IN FULL</span>
-          </div>
-          <div>
-            <div class="flex justify-between font-mono text-[10px] mb-1.5" style="color:rgba(255,255,255,.6)"><span>progress</span><span id="mG">₹0 / ₹0</span></div>
-            <div class="relative h-3 rounded-full overflow-hidden" style="background:rgba(255,255,255,.12)">
-              <div id="mBar" class="h-3 rounded-full" style="width:100%;background:linear-gradient(90deg,#0a84ff,#bf5af2,#ff375f)"></div>
-              <div class="absolute inset-0 ticks"></div>
-            </div>
-          </div>
-          <div class="flex items-end justify-between gap-3 pt-1">
-            <div class="min-w-0 flex-1">
-              <div class="font-mono text-[10px] tracking-[0.2em] uppercase" style="color:rgba(255,255,255,.55)">received from</div>
-              <div id="mN" class="font-extrabold text-xl uppercase mt-0.5" style="line-height:1.35;padding:3px 0 4px;overflow:visible;word-break:break-word;overflow-wrap:anywhere">STUDENT NAME</div>
-            </div>
-            <span id="mS" class="font-mono font-bold text-xs px-3 py-1 rounded-full shrink-0" style="border:1px solid rgba(255,255,255,.35)">SL #00</span>
-          </div>
-          <div id="mD" class="font-mono text-[10px]" style="color:rgba(255,255,255,.5)"></div>
-        </div>
-      </div>
-
-      <div class="relative" style="height:0;background:#f5f5f7">
-        <div class="absolute" style="left:-14px;top:-14px;width:28px;height:28px;border-radius:50%;background:#000"></div>
-        <div class="absolute" style="right:-14px;top:-14px;width:28px;height:28px;border-radius:50%;background:#000"></div>
-      </div>
-
-      <div class="relative p-6 pt-7 space-y-4" style="background:#f5f5f7;color:#1d1d1f">
-        <div class="absolute left-7 right-7 top-0" style="border-top:2px dashed #c7c7cc"></div>
-        <div class="flex items-center justify-between gap-4">
-          <div class="space-y-3 min-w-0 flex-1">
-            <div><div class="font-mono text-[9px] font-bold tracking-[0.2em] uppercase" style="color:#8e8e93">cash</div><div id="mC" class="font-black text-lg leading-tight">₹0</div></div>
-            <div><div class="font-mono text-[9px] font-bold tracking-[0.2em] uppercase" style="color:#8e8e93">upi</div><div id="mU" class="font-black text-lg leading-tight">₹0</div></div>
-            <div><div class="font-mono text-[9px] font-bold tracking-[0.2em] uppercase" style="color:#8e8e93">verify code</div><div id="mK" class="font-mono font-bold text-[11px] break-all" style="color:#5e5ce6">SEC-00000000</div></div>
-          </div>
-          <div class="shrink-0 text-center">
-            <div id="qr"></div>
-            <div class="font-mono text-[8px] font-bold tracking-[0.2em] mt-1.5" style="color:#8e8e93">SCAN TO VERIFY</div>
-          </div>
-        </div>
-
-        <div id="inst" class="hide rounded-2xl p-3 space-y-1 font-mono text-[10px]" style="background:#fff;border:1px solid #e5e5ea">
-          <div class="flex justify-between"><span>installment</span><b id="iI">#1</b></div>
-          <div class="flex justify-between"><span>paid before</span><span id="iP">₹0</span></div>
-          <div class="flex justify-between font-bold pt-1" style="border-top:1px solid #e5e5ea"><span>total paid</span><span id="iC">₹0</span></div>
-        </div>
-
-        <div style="height:24px;border-radius:4px;background:repeating-linear-gradient(90deg,#1d1d1f 0 2px,transparent 2px 4px,#1d1d1f 4px 5px,transparent 5px 9px,#1d1d1f 9px 12px,transparent 12px 14px);opacity:.85"></div>
-        <div class="flex justify-between font-mono text-[9px]" style="color:#8e8e93">
-          <span>wa: <b id="mPh" style="color:#1d1d1f">N/A</b></span>
-          <span id="mO">issued by Class Rep (Aben)</span>
-        </div>
-        <div class="text-center font-black text-[11px] tracking-[0.3em]" style="color:#c7c7cc">KEEP THIS. IT'S YOUR PROOF.</div>
+    <!-- CAROUSEL TRACK -->
+    <div id="rc-outer" style="overflow:hidden;border-radius:32px">
+      <div id="rc-track" class="rc-track">
+        <!-- slides will be populated by renderInvoices / renderReceiptModal -->
       </div>
     </div>
 
     <!-- MODAL ACTIONS -->
     <div id="actPrev" class="hide grid grid-cols-2 gap-2">
       <button type="button" class="btn b-ghost" onclick="cancelPreview()">Edit Details</button>
-      <button type="button" class="btn b-main" onclick="requestPinToConfirmIssue()">Confirm & Issue</button>
+      <button type="button" class="btn b-main" onclick="requestPinToConfirmIssue()">Confirm &amp; Issue</button>
     </div>
     <div id="actDone" class="grid grid-cols-2 gap-2">
       <button type="button" class="btn text-xs !py-3" style="background:#30d158;color:#000" onclick="shareWhatsApp()">Send on WhatsApp</button>
@@ -714,8 +658,8 @@ function getReceiptStatus(r) {
   return c.due ? 'PARTIAL' : c.extra ? 'EXTRA' : 'FULL';
 }
 
-const okView = v => ['big', 'box', 'tile', 'list'].includes(v) ? v : null;
-const views = { students: okView(ld('fees_view_students', 'box')) || 'tile', ledger: okView(ld('fees_view_ledger', 'big')) || 'list' };
+const okView = v => ['big', 'box', 'tile', 'list', 'timeline'].includes(v) ? v : null;
+const views = { students: okView(ld('fees_view_students', 'box')) || 'tile', ledger: okView(ld('fees_view_ledger', 'timeline')) || 'timeline' };
 function setView(t, v) {
   views[t] = v;
   sv('fees_view_' + t, v);
@@ -1267,11 +1211,13 @@ function renderRosterGrid() {
     const collectBtn = (cls) => !isAdmin ? '' : full
       ? `<span class="btn b-ghost ${cls}" style="opacity:.6;cursor:default">Paid</span>`
       : `<button type="button" class="btn b-main ${cls}" onclick="adminCollectForStudent(${s.sl})">Collect</button>`;
-    const viewBtn = (cls) => viewId ? `<button type="button" class="btn b-ghost ${cls}" onclick="viewReceipt('${viewId}')">Invoice</button>` : '';
+    const instCount = validReceipts.length;
+    const invoiceLabel = instCount > 1 ? `Invoices (${instCount})` : 'Invoice';
+    const viewBtn = (cls) => viewId ? `<button type="button" class="btn b-ghost ${cls}" onclick="openInvoices(${s.sl}, '${viewId}')">${invoiceLabel}</button>` : '';
     const payBtn = (cls) => (isAdmin || st.due <= 0) ? '' : `<button type="button" class="btn b-main ${cls}" onclick="event.stopPropagation();openPay(${s.sl})">Pay Now</button>`;
 
     if (view === 'tile') {
-      const tap = viewId ? `viewReceipt('${viewId}')` : (isAdmin && !full ? `adminCollectForStudent(${s.sl})` : '');
+      const tap = viewId ? `openInvoices(${s.sl}, '${viewId}')` : (isAdmin && !full ? `adminCollectForStudent(${s.sl})` : '');
       html += `<div class="rounded-2xl p-2.5 text-center flex flex-col justify-between" style="background:rgba(255,255,255,.05);border:1px solid var(--line);min-height:96px;${tap ? 'cursor:pointer' : ''}" ${tap ? `onclick="${tap}"` : ''}>
         <div class="font-mono text-[10px]" style="color:var(--mut)">#${pad(s.sl)}</div>
         <div class="text-[11px] font-bold leading-tight my-1" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">${esc(s.name)}</div>
@@ -1303,7 +1249,7 @@ function renderRosterGrid() {
         <span class="font-bold">${st.openExcess > 0 ? '+' + inr(st.openExcess) + ' extra money paid' : 'Extra ' + inr(st.excess) + ' settled'}</span>
         ${isAdmin ? (st.openExcess > 0
           ? `<button type="button" class="btn b-ghost !py-1.5 !px-3 text-[11px]" onclick="settleExcess(${s.sl})">Mark settled</button>`
-          : `<button type="button" class="btn b-ghost !py-1.5 !px-3 text-[11px]" onclick="unsettleExcess(${s.sl})">Undo</button>`) : ''}
+          : `<span class="text-[11px] font-bold" style="color:var(--mut)">Settled ✓</span>`) : ''}
       </div>`;
     } else if (st.status === 'VOID') {
       extraRow = `<div class="rounded-xl p-2.5 text-xs font-bold" style="background:rgba(255,55,95,.12);color:var(--pink)">Receipt voided. ${inr(p.target)} still due.</div>`;
@@ -1328,7 +1274,7 @@ function renderRosterGrid() {
       </div>
       ${extraRow}
       <div class="${view === 'box' ? 'flex flex-col gap-1.5' : 'flex gap-2'}">
-        ${viewId ? `<button type="button" class="btn b-ghost !py-2 flex-1 text-xs" onclick="viewReceipt('${viewId}')">View Invoice</button>`
+        ${viewId ? `<button type="button" class="btn b-ghost !py-2 flex-1 text-xs" onclick="openInvoices(${s.sl}, '${viewId}')">${instCount > 1 ? `View Invoices (${instCount})` : 'View Invoice'}</button>`
                  : `<span class="text-[11px] py-2 flex-1 text-center" style="color:var(--mut)">No payment yet</span>`}
         ${collectBtn('!py-2 flex-1 text-xs')}
         ${payBtn('!py-2 flex-1 text-xs')}
@@ -1348,15 +1294,14 @@ async function settleExcess(sl) {
   const p = activePlan(), st = studentState(sl);
   const nm = (R.find(x => x.sl === sl) || {}).name || '';
   if (st.openExcess <= 0) return;
-  if (!confirm(`Mark the extra ${inr(st.openExcess)} paid by ${nm} as settled (returned or adjusted)?`)) return;
-  const r = await api('settle', { planId: p.id, sl });
-  toast(r.ok ? 'Extra money marked as settled' : (r.error || 'Could not save'), !r.ok);
-}
-
-async function unsettleExcess(sl) {
-  if (!isAdmin) { promptAdminPin(() => unsettleExcess(sl)); return; }
-  const r = await api('unsettle', { planId: activePlan().id, sl });
-  toast(r.ok ? 'Settlement undone' : (r.error || 'Could not save'), !r.ok);
+  askPin(async (pin) => {
+    const r = await api('settle', { planId: p.id, sl }, pin);
+    if (r && r.ok) {
+      toast(`Extra money of ${inr(st.openExcess)} for ${nm} settled permanently`);
+      return { ok: true };
+    }
+    return r;
+  });
 }
 
 function filterRoster(filterType) {
@@ -1383,17 +1328,112 @@ function filterLedger(f) {
   renderLedger();
 }
 
+function getAllTimelineEvents(planId) {
+  const events = [];
+  const p = activePlan();
+
+  // 1. Receipts (Valid, Void, Deleted)
+  receipts.filter(r => r.planId === planId).forEach(r => {
+    let type = 'RECEIPT';
+    if (r.status === 'DELETED') type = 'DELETED';
+    else if (r.status === 'VOID') type = 'VOID';
+    
+    const c = calcReceiptInstallment(r);
+    events.push({
+      id: r.id,
+      type,
+      ts: r.ts || (new Date(r.date + ' ' + (r.timestamp || '')).getTime()) || 0,
+      date: r.date,
+      time: r.timestamp || '',
+      sl: r.sl,
+      studentName: r.studentName,
+      amount: r.total,
+      cash: r.cash,
+      upi: r.upi,
+      mode: payMode(r),
+      detail: c.due > 0 ? `Installment #${c.inst} · ${inr(c.due)} remaining due` : c.extra > 0 ? `Installment #${c.inst} · ${inr(c.extra)} extra money recorded` : `Payment #${c.inst} · Cleared in full`,
+      receipt: r,
+      extra: c.extra,
+      status: r.status
+    });
+  });
+
+  // 2. Settlement Logs (Individual repayment history entries)
+  Object.keys(settled).forEach(k => {
+    const sEntry = settled[k];
+    if (!sEntry || (sEntry.planId && sEntry.planId !== planId)) return;
+    
+    // Check for individual log entries
+    if (sEntry.log && typeof sEntry.log === 'object') {
+      Object.values(sEntry.log).forEach(l => {
+        if (!l) return;
+        events.push({
+          id: l.id || ('SETTLE-' + (l.ts || 0)),
+          type: 'SETTLED',
+          ts: l.ts || 0,
+          date: l.date || '',
+          time: l.time || '',
+          sl: l.sl,
+          studentName: l.studentName || (R.find(x => x.sl === l.sl) || {}).name || `SL #${pad(l.sl)}`,
+          amount: l.amount || 0,
+          mode: l.mode || 'CASH',
+          detail: `Extra money refunded/settled permanently to student (${l.mode || 'CASH'})`,
+          receipt: null,
+          status: 'SETTLED'
+        });
+      });
+    } else if (sEntry.amount > 0) {
+      // Legacy summary settlement entry without individual log
+      events.push({
+        id: 'SETTLE-' + k,
+        type: 'SETTLED',
+        ts: sEntry.ts || 0,
+        date: sEntry.date || '',
+        time: sEntry.time || '',
+        sl: sEntry.sl,
+        studentName: (R.find(x => x.sl === sEntry.sl) || {}).name || `SL #${pad(sEntry.sl)}`,
+        amount: sEntry.amount,
+        mode: 'CASH',
+        detail: `Extra money repayment settled permanently`,
+        receipt: null,
+        status: 'SETTLED'
+      });
+    }
+  });
+
+  // 3. Handovers to Miss
+  handovers.filter(h => h.planId === planId).forEach(h => {
+    events.push({
+      id: h.id,
+      type: 'HANDOVER',
+      ts: h.ts || 0,
+      date: h.date,
+      time: h.timestamp || '',
+      sl: 0,
+      studentName: 'Class Rep → Miss',
+      amount: h.amount,
+      mode: h.mode === 'CASH' ? 'CASH' : 'GPAY',
+      detail: `Money handed over to Miss (${h.mode === 'CASH' ? 'Cash' : 'GPay'})${h.note ? ' · ' + esc(h.note) : ''}`,
+      receipt: null,
+      status: 'HANDOVER'
+    });
+  });
+
+  // Sort newest first (highest timestamp)
+  return events.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+}
+
 function renderLedger() {
   const p = activePlan();
   const queryText = $('ledger-search') ? $('ledger-search').value.toLowerCase().trim() : '';
   const isTestDel = r => r.status === 'DELETED' && (r.deleteCat === 'TEST' || /^test entry/i.test(r.deleteReason || ''));
-  // Deleted "Test entry" receipts are removed from the main list for everyone.
-  // Admin can still find every deleted receipt (test ones too) under the "Deleted" filter.
+
+  // Receipts base list
   const all = receipts.filter(r => r.planId === p.id && (ledgerFilter === 'DELETED'
     ? (isAdmin && r.status === 'DELETED')
     : (r.status !== 'DELETED' || (isAdmin && !isTestDel(r)))));
 
-  // summary
+  // summary stats
   const valid = all.filter(r => r.status === 'VALID');
   const totalIn = valid.reduce((a, r) => a + r.total, 0);
   const cashIn = valid.reduce((a, r) => a + r.cash, 0);
@@ -1411,6 +1451,88 @@ function renderLedger() {
       ${voidN ? `<div class="stat col-span-2"><span class="text-xs font-bold" style="color:var(--pink)">${voidN} voided receipt${voidN > 1 ? 's' : ''}</span></div>` : ''}`;
   }
 
+  const view = views.ledger;
+  const box = $('ledger-list');
+  if (!box) return;
+
+  // TIMELINE VIEW: Shows all transactions in chronological timeline (newest on top)
+  if (view === 'timeline' || ledgerFilter === 'TIMELINE' || ledgerFilter === 'SETTLED' || ledgerFilter === 'HANDOVER') {
+    let allEvents = getAllTimelineEvents(p.id);
+
+    // Apply ledger filters
+    if (ledgerFilter === 'FULL') allEvents = allEvents.filter(e => e.type === 'RECEIPT' && getReceiptStatus(e.receipt) === 'FULL');
+    else if (ledgerFilter === 'PARTIAL') allEvents = allEvents.filter(e => e.type === 'RECEIPT' && getReceiptStatus(e.receipt) === 'PARTIAL');
+    else if (ledgerFilter === 'EXTRA') allEvents = allEvents.filter(e => e.type === 'RECEIPT' && getReceiptStatus(e.receipt) === 'EXTRA');
+    else if (ledgerFilter === 'SETTLED') allEvents = allEvents.filter(e => e.type === 'SETTLED');
+    else if (ledgerFilter === 'HANDOVER') allEvents = allEvents.filter(e => e.type === 'HANDOVER');
+    else if (ledgerFilter === 'VOID') allEvents = allEvents.filter(e => e.type === 'VOID');
+    else if (ledgerFilter === 'DELETED') allEvents = allEvents.filter(e => e.type === 'DELETED');
+    else if (ledgerFilter === 'CASH') allEvents = allEvents.filter(e => e.cash > 0 || (e.type === 'SETTLED' && e.mode === 'CASH') || (e.type === 'HANDOVER' && e.mode === 'CASH'));
+    else if (ledgerFilter === 'UPI') allEvents = allEvents.filter(e => e.upi > 0 || (e.type === 'SETTLED' && e.mode === 'UPI') || (e.type === 'HANDOVER' && e.mode === 'GPAY'));
+
+    // Search query filter
+    if (queryText) {
+      allEvents = allEvents.filter(e => e.studentName.toLowerCase().includes(queryText) || e.id.toLowerCase().includes(queryText) || String(e.sl) === queryText);
+    }
+
+    box.className = 'tl-line space-y-4 pt-2';
+    if (!allEvents.length) {
+      box.innerHTML = '<div class="text-center py-12 text-sm" style="color:var(--mut)">No timeline events recorded yet.</div>';
+      return;
+    }
+
+    box.innerHTML = allEvents.map((e, idx) => {
+      let nodeColor = '#30d158', nodeBg = 'rgba(48,209,88,.2)', nodeIcon = '✓', badgeCls = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+      if (e.type === 'SETTLED') {
+        nodeColor = '#64d2ff'; nodeBg = 'rgba(100,210,255,.2)'; nodeIcon = '↩';
+        badgeCls = 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20';
+      } else if (e.type === 'HANDOVER') {
+        nodeColor = '#d6ff3f'; nodeBg = 'rgba(214,255,63,.2)'; nodeIcon = '↑';
+        badgeCls = 'text-lime-400 bg-lime-500/10 border-lime-500/20';
+      } else if (e.type === 'VOID' || e.type === 'DELETED') {
+        nodeColor = '#ff375f'; nodeBg = 'rgba(255,55,95,.2)'; nodeIcon = '✕';
+        badgeCls = 'text-rose-400 bg-rose-500/10 border-rose-500/20';
+      } else if (e.receipt && getReceiptStatus(e.receipt) === 'PARTIAL') {
+        nodeColor = '#ffd60a'; nodeBg = 'rgba(255,214,10,.2)'; nodeIcon = '•';
+        badgeCls = 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+      } else if (e.receipt && getReceiptStatus(e.receipt) === 'EXTRA') {
+        nodeColor = '#bf5af2'; nodeBg = 'rgba(191,90,242,.2)'; nodeIcon = '+';
+        badgeCls = 'text-purple-400 bg-purple-500/10 border-purple-500/20';
+      }
+
+      const isReceipt = !!e.receipt;
+      const tapAction = isReceipt ? `onclick="openInvoices(${e.sl}, '${e.id}')"` : '';
+      const cursor = isReceipt ? 'cursor-pointer hover:border-white/30' : '';
+
+      return `<div class="tl-item">
+        <div class="tl-node" style="color:${nodeColor};background:${nodeBg};border-color:#000">${nodeIcon}</div>
+        <div class="card p-4 space-y-2 border border-white/10 ${cursor}" ${tapAction}>
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm truncate ${e.type === 'VOID' || e.type === 'DELETED' ? 'line-through text-rose-300' : ''}">${esc(e.studentName)}</span>
+                ${e.sl ? `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-white/50">#${pad(e.sl)}</span>` : ''}
+              </div>
+              <div class="tl-time mt-0.5">${esc(e.date)} · ${esc(e.time || '')}</div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="font-black font-mono text-base" style="color:${nodeColor}">${e.type === 'SETTLED' ? '-' : '+'}${inr(e.amount)}</div>
+              <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border ${badgeCls}">${e.type}</span>
+            </div>
+          </div>
+          <div class="text-xs" style="color:var(--mut)">${esc(e.detail)}</div>
+          ${isReceipt ? `<div class="flex gap-2 pt-1 border-t border-white/5">
+            <button type="button" class="btn b-ghost !py-1 !px-2.5 text-[11px] flex-1" onclick="event.stopPropagation();openInvoices(${e.sl}, '${e.id}')">View Invoices</button>
+            ${isAdmin && phones[e.sl] && e.status !== 'DELETED' ? `<button type="button" class="btn b-ghost !py-1 !px-2.5 text-[11px]" onclick="event.stopPropagation();sendWhatsAppMsg('${e.id}')">WhatsApp</button>` : ''}
+            ${isAdmin && e.status !== 'DELETED' ? `<button type="button" class="btn b-ghost !py-1 !px-2.5 text-[11px]" style="color:var(--pink)" onclick="event.stopPropagation();openDeleteReceipt('${e.id}')">Delete</button>` : ''}
+          </div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  // STANDARD VIEWS (big, box, tile, list)
   const list = all.filter(r => {
     if (queryText && !(r.studentName.toLowerCase().includes(queryText) || r.id.toLowerCase().includes(queryText) || String(r.sl) === queryText)) return false;
     if (ledgerFilter === 'ALL') return true;
@@ -1419,79 +1541,75 @@ function renderLedger() {
     return getReceiptStatus(r) === ledgerFilter;
   });
 
-  const view = views.ledger;
-  const box = $('ledger-list');
-  if (box) {
-    box.className = { big: 'space-y-2', box: 'grid grid-cols-2 gap-2', tile: 'grid grid-cols-3 sm:grid-cols-4 gap-2', list: 'space-y-1.5' }[view] || 'space-y-2';
-    box.innerHTML = list.map(r => {
-      const isVoid = r.status === 'VOID' || r.status === 'DELETED';
-      const statusKey = getReceiptStatus(r);
-      const c = calcReceiptInstallment(r);
-      const mode = payMode(r);
-      const isSettled = statusKey === 'EXTRA' && ((settled[settleKey(r.planId, r.sl)] || {}).amount || 0) >= c.extra;
-      const label = { FULL: 'PAID IN FULL', PARTIAL: 'PARTIAL · ' + inr(c.due) + ' DUE', EXTRA: '+' + inr(c.extra) + ' EXTRA', VOID: 'VOID', DELETED: 'DELETED' }[statusKey];
-      const short = { FULL: 'PAID', PARTIAL: 'PARTIAL', EXTRA: 'EXTRA', VOID: 'VOID', DELETED: 'DELETED' }[statusKey];
-      const amtColor = isVoid ? 'var(--pink)' : statusKey === 'PARTIAL' ? 'var(--yellow)' : statusKey === 'EXTRA' ? 'var(--cyan)' : 'var(--green)';
-      const amt = (isVoid ? '' : '+') + inr(r.total);
+  box.className = { big: 'space-y-2', box: 'grid grid-cols-2 gap-2', tile: 'grid grid-cols-3 sm:grid-cols-4 gap-2', list: 'space-y-1.5' }[view] || 'space-y-2';
+  box.innerHTML = list.map(r => {
+    const isVoid = r.status === 'VOID' || r.status === 'DELETED';
+    const statusKey = getReceiptStatus(r);
+    const c = calcReceiptInstallment(r);
+    const mode = payMode(r);
+    const isSettled = statusKey === 'EXTRA' && ((settled[settleKey(r.planId, r.sl)] || {}).amount || 0) >= c.extra;
+    const label = { FULL: 'PAID IN FULL', PARTIAL: 'PARTIAL · ' + inr(c.due) + ' DUE', EXTRA: '+' + inr(c.extra) + ' EXTRA', VOID: 'VOID', DELETED: 'DELETED' }[statusKey];
+    const short = { FULL: 'PAID', PARTIAL: 'PARTIAL', EXTRA: 'EXTRA', VOID: 'VOID', DELETED: 'DELETED' }[statusKey];
+    const amtColor = isVoid ? 'var(--pink)' : statusKey === 'PARTIAL' ? 'var(--yellow)' : statusKey === 'EXTRA' ? 'var(--cyan)' : 'var(--green)';
+    const amt = (isVoid ? '' : '+') + inr(r.total);
 
-      if (view === 'tile') {
-        return `<div class="rounded-2xl p-2.5 text-center cursor-pointer flex flex-col justify-between ${isVoid ? 'opacity-60' : ''}" style="background:rgba(255,255,255,.05);border:1px solid var(--line);min-height:92px" onclick="viewReceipt('${r.id}')">
-          <div class="font-mono text-[10px]" style="color:var(--mut)">${r.id.replace('REC-', '#')}</div>
-          <div class="text-[11px] font-bold leading-tight my-1 ${isVoid ? 'line-through' : ''}" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">${esc(r.studentName)}</div>
-          <div class="font-mono font-black text-xs ${isVoid ? 'line-through' : ''}" style="color:${amtColor}">${amt}</div>
-          <div class="h-1 rounded-full mt-1.5" style="background:${COLOR_MAP[statusKey]}"></div>
-        </div>`;
-      }
-      if (view === 'list') {
-        return `<div class="card px-3 py-2.5 flex items-center gap-3 cursor-pointer ${isVoid ? 'opacity-60' : ''}" onclick="viewReceipt('${r.id}')">
-          <div class="min-w-0 flex-1">
-            <div class="font-bold text-sm truncate ${isVoid ? 'line-through' : ''}">${esc(r.studentName)}</div>
-            <div class="text-[11px]" style="color:var(--mut)">${esc(r.id)} · ${mode} · ${esc(r.date)}</div>
-          </div>
-          <div class="text-right shrink-0">
-            <div class="font-black font-mono ${isVoid ? 'line-through' : ''}" style="color:${amtColor}">${amt}</div>
-            <span class="chip" style="color:${COLOR_MAP[statusKey]};padding:1px 7px">${short}</span>
-          </div>
-        </div>`;
-      }
-      if (view === 'box') {
-        return `<div class="card p-3 cursor-pointer ${isVoid ? 'opacity-60' : ''}" onclick="viewReceipt('${r.id}')">
+    if (view === 'tile') {
+      return `<div class="rounded-2xl p-2.5 text-center cursor-pointer flex flex-col justify-between ${isVoid ? 'opacity-60' : ''}" style="background:rgba(255,255,255,.05);border:1px solid var(--line);min-height:92px" onclick="openInvoices(${r.sl}, '${r.id}')">
+        <div class="font-mono text-[10px]" style="color:var(--mut)">${r.id.replace('REC-', '#')}</div>
+        <div class="text-[11px] font-bold leading-tight my-1 ${isVoid ? 'line-through' : ''}" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">${esc(r.studentName)}</div>
+        <div class="font-mono font-black text-xs ${isVoid ? 'line-through' : ''}" style="color:${amtColor}">${amt}</div>
+        <div class="h-1 rounded-full mt-1.5" style="background:${COLOR_MAP[statusKey]}"></div>
+      </div>`;
+    }
+    if (view === 'list') {
+      return `<div class="card px-3 py-2.5 flex items-center gap-3 cursor-pointer ${isVoid ? 'opacity-60' : ''}" onclick="openInvoices(${r.sl}, '${r.id}')">
+        <div class="min-w-0 flex-1">
           <div class="font-bold text-sm truncate ${isVoid ? 'line-through' : ''}">${esc(r.studentName)}</div>
-          <div class="text-[10px] mb-1.5" style="color:var(--mut)">${esc(r.id)} · SL #${pad(r.sl)}</div>
-          <div class="font-black font-mono text-lg ${isVoid ? 'line-through' : ''}" style="color:${amtColor}">${amt}</div>
-          <div class="flex flex-wrap gap-1 mt-1.5">
-            <span class="chip" style="color:${COLOR_MAP[statusKey]};padding:1px 7px">${short}</span>
-            <span class="chip" style="color:${COLOR_MAP[mode]};padding:1px 7px">${mode}</span>
-          </div>
-        </div>`;
-      }
-      return `<div class="card p-4 ${isVoid ? 'opacity-60' : ''}">
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <div class="font-bold truncate ${isVoid ? 'line-through' : ''}">${esc(r.studentName)}</div>
-            <div class="text-xs mt-0.5" style="color:var(--mut)">${esc(r.id)} / SL #${pad(r.sl)} / ${esc(r.date)}</div>
-          </div>
-          <div class="text-right shrink-0">
-            <div class="font-black text-lg font-mono ${isVoid ? 'line-through' : ''}" style="color:${amtColor}">${amt}</div>
-          </div>
+          <div class="text-[11px]" style="color:var(--mut)">${esc(r.id)} · ${mode} · ${esc(r.date)}</div>
         </div>
-        ${r.status === 'DELETED' ? `<div class="text-[11px] mt-2" style="color:var(--pink)">Deleted: ${esc(r.deleteReason || '')}</div>` : ''}
-        <div class="flex flex-wrap gap-1.5 mt-2.5">
-          <span class="chip" style="color:${COLOR_MAP[statusKey]}">${label}</span>
-          <span class="chip" style="color:${COLOR_MAP[mode]}">${mode}</span>
-          <span class="chip" style="color:var(--mut)">PAYMENT #${c.inst}</span>
-          ${isSettled ? '<span class="chip" style="color:var(--green)">EXTRA SETTLED</span>' : ''}
-        </div>
-        <div class="flex gap-2 mt-3">
-          <button type="button" class="btn b-ghost !py-2 flex-1 text-xs" onclick="viewReceipt('${r.id}')">View Slip</button>
-          ${isAdmin && phones[r.sl] && r.status !== 'DELETED' ? `<button type="button" class="btn b-ghost !py-2 flex-1 text-xs" onclick="sendWhatsAppMsg('${r.id}')">WhatsApp</button>` : ''}
-          ${isAdmin ? (r.status === 'DELETED'
-            ? `<button type="button" class="btn b-ghost !py-2 flex-1 text-xs" style="color:var(--green)" onclick="restoreDeleted('${r.id}')">Restore</button>`
-            : `<button type="button" class="btn b-ghost !py-2 flex-1 text-xs" style="color:${isVoid ? 'var(--green)' : 'var(--pink)'}" onclick="toggleVoidReceipt('${r.id}')">${isVoid ? 'Restore' : 'Void'}</button><button type="button" class="btn b-ghost !py-2 flex-1 text-xs" style="color:var(--pink)" onclick="openDeleteReceipt('${r.id}')">Delete</button>`) : ''}
+        <div class="text-right shrink-0">
+          <div class="font-black font-mono ${isVoid ? 'line-through' : ''}" style="color:${amtColor}">${amt}</div>
+          <span class="chip" style="color:${COLOR_MAP[statusKey]};padding:1px 7px">${short}</span>
         </div>
       </div>`;
-    }).join('') || '<div class="text-center py-14 text-sm col-span-2" style="color:var(--mut)">No receipts match.</div>';
-  }
+    }
+    if (view === 'box') {
+      return `<div class="card p-3 cursor-pointer ${isVoid ? 'opacity-60' : ''}" onclick="openInvoices(${r.sl}, '${r.id}')">
+        <div class="font-bold text-sm truncate ${isVoid ? 'line-through' : ''}">${esc(r.studentName)}</div>
+        <div class="text-[10px] mb-1.5" style="color:var(--mut)">${esc(r.id)} · SL #${pad(r.sl)}</div>
+        <div class="font-black font-mono text-lg ${isVoid ? 'line-through' : ''}" style="color:${amtColor}">${amt}</div>
+        <div class="flex flex-wrap gap-1 mt-1.5">
+          <span class="chip" style="color:${COLOR_MAP[statusKey]};padding:1px 7px">${short}</span>
+          <span class="chip" style="color:${COLOR_MAP[mode]};padding:1px 7px">${mode}</span>
+        </div>
+      </div>`;
+    }
+    return `<div class="card p-4 ${isVoid ? 'opacity-60' : ''}">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="font-bold truncate ${isVoid ? 'line-through' : ''}">${esc(r.studentName)}</div>
+          <div class="text-xs mt-0.5" style="color:var(--mut)">${esc(r.id)} / SL #${pad(r.sl)} / ${esc(r.date)}</div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="font-black text-lg font-mono ${isVoid ? 'line-through' : ''}" style="color:${amtColor}">${amt}</div>
+        </div>
+      </div>
+      ${r.status === 'DELETED' ? `<div class="text-[11px] mt-2" style="color:var(--pink)">Deleted: ${esc(r.deleteReason || '')}</div>` : ''}
+      <div class="flex flex-wrap gap-1.5 mt-2.5">
+        <span class="chip" style="color:${COLOR_MAP[statusKey]}">${label}</span>
+        <span class="chip" style="color:${COLOR_MAP[mode]}">${mode}</span>
+        <span class="chip" style="color:var(--mut)">PAYMENT #${c.inst}</span>
+        ${isSettled ? '<span class="chip" style="color:var(--green)">EXTRA SETTLED</span>' : ''}
+      </div>
+      <div class="flex gap-2 mt-3">
+        <button type="button" class="btn b-ghost !py-2 flex-1 text-xs" onclick="openInvoices(${r.sl}, '${r.id}')">View Slip</button>
+        ${isAdmin && phones[r.sl] && r.status !== 'DELETED' ? `<button type="button" class="btn b-ghost !py-2 flex-1 text-xs" onclick="sendWhatsAppMsg('${r.id}')">WhatsApp</button>` : ''}
+        ${isAdmin ? (r.status === 'DELETED'
+          ? `<button type="button" class="btn b-ghost !py-2 flex-1 text-xs" style="color:var(--green)" onclick="restoreDeleted('${r.id}')">Restore</button>`
+          : `<button type="button" class="btn b-ghost !py-2 flex-1 text-xs" style="color:${isVoid ? 'var(--green)' : 'var(--pink)'}" onclick="toggleVoidReceipt('${r.id}')">${isVoid ? 'Restore' : 'Void'}</button><button type="button" class="btn b-ghost !py-2 flex-1 text-xs" style="color:var(--pink)" onclick="openDeleteReceipt('${r.id}')">Delete</button>`) : ''}
+      </div>
+    </div>`;
+  }).join('') || '<div class="text-center py-14 text-sm col-span-2" style="color:var(--mut)">No receipts match.</div>';
 }
 
 /* ============ FUNDS (cash / UPI submitted to Miss) ============ */
@@ -1659,31 +1777,12 @@ function viewReceipt(id) {
   if (r) renderReceiptModal(r, false);
 }
 
-function renderReceiptModal(r, isPreviewMode) {
-  curReceiptId = isPreviewMode ? null : r.id;
-  preparedBlob = null;
+let currentCarouselInvoices = [];
+let currentCarouselIndex = 0;
 
-  if ($('preview-mode-banner')) $('preview-mode-banner').classList.toggle('hide', !isPreviewMode);
-  if ($('actPrev')) $('actPrev').classList.toggle('hide', !isPreviewMode);
-  if ($('actDone')) $('actDone').classList.toggle('hide', isPreviewMode);
-
+function buildReceiptCardHTML(r, isPreviewMode) {
   const c = calcReceiptInstallment(r);
   const statusKey = getReceiptStatus(r);
-  const setTxt = (id, val) => { if ($(id)) $(id).textContent = val; };
-
-  setTxt('mP', r.planTitle);
-  setTxt('mI', r.id);
-  setTxt('mD', `${esc(r.date)}, ${r.timestamp}`);
-  setTxt('mN', r.studentName);
-  setTxt('mS', 'SL #' + pad(r.sl));
-  setTxt('mPh', isAdmin ? (r.phone || phones[r.sl] || 'N/A') : '-');
-  setTxt('mC', inr(r.cash));
-  setTxt('mU', inr(r.upi));
-  setTxt('mT', inr(r.total));
-  setTxt('mK', r.secKey);
-  setTxt('mO', 'issued by ' + r.collector);
-  if ($('btn-del-rec')) $('btn-del-rec').classList.toggle('hide', isPreviewMode || !isAdmin || r.status === 'DELETED');
-
   const badgeConfig = {
     FULL: ['PAID IN FULL', '#30d158'],
     PARTIAL: ['DUE ' + inr(c.due), '#ffd60a'],
@@ -1692,33 +1791,244 @@ function renderReceiptModal(r, isPreviewMode) {
     DELETED: ['DELETED', '#ff375f']
   }[statusKey] || ['PAID IN FULL', '#30d158'];
 
-  setTxt('mB', badgeConfig[0]);
-  if ($('mB')) {
-    $('mB').style.background = badgeConfig[1];
-    $('mB').style.transform = 'rotate(-6deg)';
-  }
-
-  setTxt('mG', `${inr(c.cum)} / ${inr(r.planTarget)}`);
-  if ($('mBar')) $('mBar').style.width = Math.min(100, Math.round((c.cum / r.planTarget) * 100)) + '%';
-
+  const pct = Math.min(100, Math.round((c.cum / r.planTarget) * 100));
   const isMultiPayment = c.inst > 1 || c.due > 0;
-  if ($('inst')) $('inst').classList.toggle('hide', !isMultiPayment);
-  if (isMultiPayment) {
-    setTxt('iI', '#' + c.inst);
-    setTxt('iP', inr(c.prev));
-    setTxt('iC', inr(c.cum));
+  const qrId = 'qr-' + (r.id ? r.id.replace(/\W/g, '_') : 'preview');
+
+  return `
+    <div id="printable-receipt-card" class="relative rounded-[32px] overflow-hidden font-sans text-white shadow-2xl mx-auto w-full max-w-md" style="background:#000">
+      <div class="relative overflow-hidden" style="background:radial-gradient(120% 70% at 85% -10%,rgba(191,90,242,.65) 0%,rgba(191,90,242,0) 60%),radial-gradient(100% 70% at 0% 30%,rgba(10,132,255,.55) 0%,rgba(10,132,255,0) 60%),radial-gradient(90% 60% at 60% 110%,rgba(255,55,95,.45) 0%,rgba(255,55,95,0) 60%),#000">
+        <div class="absolute inset-0 overflow-hidden pointer-events-none select-none">
+          <div style="transform:rotate(-14deg) scale(1.3);margin-top:-40px">
+            <div class="font-black whitespace-nowrap leading-none" style="font-size:54px;color:rgba(255,255,255,.06);letter-spacing:-2px">
+              <div style="margin-left:-30px">FEES FEES FEES FEES</div>
+              <div style="margin-left:-110px">FEES FEES FEES FEES</div>
+              <div style="margin-left:-10px">FEES FEES FEES FEES</div>
+              <div style="margin-left:-90px">FEES FEES FEES FEES</div>
+              <div style="margin-left:-40px">FEES FEES FEES FEES</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="relative" style="background:#d6ff3f;color:#000">
+          <div class="font-mono font-black text-[10px] tracking-[0.25em] whitespace-nowrap overflow-hidden py-1.5 px-3">
+            FEE RECEIPT + FEE RECEIPT + FEE RECEIPT + FEE RECEIPT + FEE RECEIPT
+          </div>
+        </div>
+
+        <div class="relative p-6 pb-7 space-y-5">
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-[10px] font-bold tracking-widest px-3 py-1 rounded-full" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);display:inline-flex;align-items:center;gap:6px">
+              <img src="/icons/logo.png" alt="" width="14" height="14" style="width:14px;height:14px;object-fit:contain">RECEIPT
+            </span>
+            <span class="font-mono text-[11px] font-bold px-3 py-1 rounded-full" style="background:#fff;color:#000">${esc(r.id)}</span>
+          </div>
+          <div>
+            <div class="font-mono text-[10px] tracking-[0.2em] uppercase" style="color:rgba(255,255,255,.55)">fee plan</div>
+            <div class="font-black uppercase leading-[0.95] tracking-tight mt-1" style="font-size:32px">${esc(r.planTitle)}</div>
+          </div>
+          <div class="flex items-end justify-between gap-3">
+            <div>
+              <div class="font-mono text-[10px] tracking-[0.2em] uppercase" style="color:rgba(255,255,255,.55)">you paid</div>
+              <div class="font-black tracking-tighter leading-none mt-1" style="font-size:44px">${inr(r.total)}</div>
+            </div>
+            <span class="font-mono font-black text-[10px] px-3 py-1.5 rounded-full whitespace-nowrap" style="color:#000;transform:rotate(-6deg);background:${badgeConfig[1]}">${badgeConfig[0]}</span>
+          </div>
+          <div>
+            <div class="flex justify-between font-mono text-[10px] mb-1.5" style="color:rgba(255,255,255,.6)"><span>progress</span><span>${inr(c.cum)} / ${inr(r.planTarget)}</span></div>
+            <div class="relative h-3 rounded-full overflow-hidden" style="background:rgba(255,255,255,.12)">
+              <div class="h-3 rounded-full" style="width:${pct}%;background:linear-gradient(90deg,#0a84ff,#bf5af2,#ff375f)"></div>
+              <div class="absolute inset-0 ticks"></div>
+            </div>
+          </div>
+          <div class="flex items-end justify-between gap-3 pt-1">
+            <div class="min-w-0 flex-1">
+              <div class="font-mono text-[10px] tracking-[0.2em] uppercase" style="color:rgba(255,255,255,.55)">received from</div>
+              <div id="mN" class="font-extrabold text-xl uppercase mt-0.5" style="line-height:1.35;padding:3px 0 4px;overflow:visible;word-break:break-word;overflow-wrap:anywhere">${esc(r.studentName)}</div>
+            </div>
+            <span class="font-mono font-bold text-xs px-3 py-1 rounded-full shrink-0" style="border:1px solid rgba(255,255,255,.35)">SL #${pad(r.sl)}</span>
+          </div>
+          <div class="font-mono text-[10px]" style="color:rgba(255,255,255,.5)">${esc(r.date)}, ${esc(r.timestamp || '')}</div>
+        </div>
+      </div>
+
+      <div class="relative" style="height:0;background:#f5f5f7">
+        <div class="absolute" style="left:-14px;top:-14px;width:28px;height:28px;border-radius:50%;background:#000"></div>
+        <div class="absolute" style="right:-14px;top:-14px;width:28px;height:28px;border-radius:50%;background:#000"></div>
+      </div>
+
+      <div class="relative p-6 pt-7 space-y-4" style="background:#f5f5f7;color:#1d1d1f">
+        <div class="absolute left-7 right-7 top-0" style="border-top:2px dashed #c7c7cc"></div>
+        <div class="flex items-center justify-between gap-4">
+          <div class="space-y-3 min-w-0 flex-1">
+            <div><div class="font-mono text-[9px] font-bold tracking-[0.2em] uppercase" style="color:#8e8e93">cash</div><div class="font-black text-lg leading-tight">${inr(r.cash)}</div></div>
+            <div><div class="font-mono text-[9px] font-bold tracking-[0.2em] uppercase" style="color:#8e8e93">upi</div><div class="font-black text-lg leading-tight">${inr(r.upi)}</div></div>
+            <div><div class="font-mono text-[9px] font-bold tracking-[0.2em] uppercase" style="color:#8e8e93">verify code</div><div class="font-mono font-bold text-[11px] break-all" style="color:#5e5ce6">${esc(r.secKey)}</div></div>
+          </div>
+          <div class="shrink-0 text-center">
+            <div id="${qrId}" style="width:110px;height:110px;display:flex;align-items:center;justify-content:center"></div>
+            <div class="font-mono text-[8px] font-bold tracking-[0.2em] mt-1.5" style="color:#8e8e93">SCAN TO VERIFY</div>
+          </div>
+        </div>
+
+        ${isMultiPayment ? `
+        <div class="rounded-2xl p-3 space-y-1 font-mono text-[10px]" style="background:#fff;border:1px solid #e5e5ea">
+          <div class="flex justify-between"><span>installment</span><b>#${c.inst}</b></div>
+          <div class="flex justify-between"><span>paid before</span><span>${inr(c.prev)}</span></div>
+          <div class="flex justify-between font-bold pt-1" style="border-top:1px solid #e5e5ea"><span>total paid</span><span>${inr(c.cum)}</span></div>
+        </div>` : ''}
+
+        <div style="height:24px;border-radius:4px;background:repeating-linear-gradient(90deg,#1d1d1f 0 2px,transparent 2px 4px,#1d1d1f 4px 5px,transparent 5px 9px,#1d1d1f 9px 12px,transparent 12px 14px);opacity:.85"></div>
+        <div class="flex justify-between font-mono text-[9px]" style="color:#8e8e93">
+          <span>wa: <b style="color:#1d1d1f">${isAdmin ? (r.phone || phones[r.sl] || 'N/A') : '-'}</b></span>
+          <span>issued by ${esc(r.collector)}</span>
+        </div>
+        <div class="text-center font-black text-[11px] tracking-[0.3em]" style="color:#c7c7cc">KEEP THIS. IT'S YOUR PROOF.</div>
+      </div>
+    </div>`;
+}
+
+function openInvoices(sl, targetId) {
+  const p = activePlan();
+  const list = receipts.filter(r => r.planId === p.id && r.sl === sl && (r.status === 'VALID' || r.status === 'VOID' || (isAdmin && r.status === 'DELETED')))
+                       .sort((a, b) => numId(a) - numId(b)); // chronological: 1st installment, 2nd, 3rd...
+
+  if (!list.length) {
+    // If no receipts found, try matching by targetId directly
+    if (targetId) {
+      const r = receipts.find(x => x.id === targetId);
+      if (r) list.push(r);
+    }
+  }
+  if (!list.length) return toast('No receipts found for this student', 1);
+
+  currentCarouselInvoices = list;
+  let idx = 0;
+  if (targetId) {
+    const foundIdx = list.findIndex(x => x.id === targetId);
+    if (foundIdx >= 0) idx = foundIdx;
+  }
+  currentCarouselIndex = idx;
+  renderCarouselUI();
+}
+
+function viewReceipt(id) {
+  const r = receipts.find(x => x.id === id);
+  if (r) openInvoices(r.sl, id);
+}
+
+function renderReceiptModal(r, isPreviewMode) {
+  // If isPreviewMode, show single slide with action buttons for confirm
+  if (isPreviewMode) {
+    currentCarouselInvoices = [r];
+    currentCarouselIndex = 0;
+    renderCarouselUI(true);
+    return;
+  }
+  openInvoices(r.sl, r.id);
+}
+
+function renderCarouselUI(isPreviewMode = false) {
+  const list = currentCarouselInvoices;
+  const track = $('rc-track');
+  const nav = $('rc-nav');
+  const dotsBox = $('rc-dots');
+
+  curReceiptId = isPreviewMode ? null : (list[currentCarouselIndex] ? list[currentCarouselIndex].id : null);
+  preparedBlob = null;
+
+  if ($('preview-mode-banner')) $('preview-mode-banner').classList.toggle('hide', !isPreviewMode);
+  if ($('actPrev')) $('actPrev').classList.toggle('hide', !isPreviewMode);
+  if ($('actDone')) $('actDone').classList.toggle('hide', isPreviewMode);
+  if (nav) nav.classList.toggle('hide', isPreviewMode || list.length <= 1);
+
+  // Render dots
+  if (dotsBox) {
+    dotsBox.innerHTML = list.map((_, i) => `<div class="rc-dot ${i === currentCarouselIndex ? 'on' : ''}" onclick="rcGoto(${i})"></div>`).join('');
   }
 
-  if (isPreviewMode) $('qr').innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;font:700 10px monospace;color:#8e8e93;text-align:center;padding:6px">QR appears after you confirm</div>';
-  else renderQRCode($('qr'), PUBLIC_BASE + '/verify?id=' + encodeURIComponent(r.id) + '&k=' + encodeURIComponent(r.secKey));
+  // Render track slides
+  if (track) {
+    track.innerHTML = list.map((r, i) => `<div class="rc-slide" data-idx="${i}">${buildReceiptCardHTML(r, isPreviewMode)}</div>`).join('');
+    track.style.transform = `translateX(-${currentCarouselIndex * 100}%)`;
+
+    // Render QR codes on each slide
+    list.forEach(r => {
+      const qrId = 'qr-' + (r.id ? r.id.replace(/\W/g, '_') : 'preview');
+      const el = $(qrId);
+      if (el) {
+        if (isPreviewMode) {
+          el.innerHTML = '<div style="font:700 9px monospace;color:#8e8e93;padding:4px;text-align:center">QR appears after confirm</div>';
+        } else {
+          renderQRCode(el, PUBLIC_BASE + '/verify?id=' + encodeURIComponent(r.id) + '&k=' + encodeURIComponent(r.secKey));
+        }
+      }
+    });
+
+    // Attach swipe touch handlers
+    initCarouselSwipe();
+  }
+
+  // Update delete button visibility
+  if ($('btn-del-rec')) {
+    const activeR = list[currentCarouselIndex];
+    $('btn-del-rec').classList.toggle('hide', isPreviewMode || !isAdmin || (activeR && activeR.status === 'DELETED'));
+  }
 
   showModal('rm');
   if ($('rm')) $('rm').scrollTop = 0;
   if (!isPreviewMode) setTimeout(prepareReceiptCanvas, 350);
 }
 
+function rcMove(dir) {
+  const n = currentCarouselInvoices.length;
+  if (n <= 1) return;
+  rcGoto((currentCarouselIndex + dir + n) % n);
+}
+
+function rcGoto(idx) {
+  if (idx < 0 || idx >= currentCarouselInvoices.length) return;
+  currentCarouselIndex = idx;
+  curReceiptId = currentCarouselInvoices[idx].id;
+  preparedBlob = null;
+
+  const track = $('rc-track');
+  if (track) track.style.transform = `translateX(-${idx * 100}%)`;
+
+  const dots = document.querySelectorAll('.rc-dot');
+  dots.forEach((d, i) => d.classList.toggle('on', i === idx));
+
+  if ($('btn-del-rec')) {
+    const activeR = currentCarouselInvoices[idx];
+    $('btn-del-rec').classList.toggle('hide', !isAdmin || (activeR && activeR.status === 'DELETED'));
+  }
+  setTimeout(prepareReceiptCanvas, 300);
+}
+
+// Touch swipe logic for Apple-like smooth sliding
+let rcTouchStartX = 0, rcTouchStartY = 0;
+function initCarouselSwipe() {
+  const outer = $('rc-outer');
+  if (!outer || outer._hasSwipe) return;
+  outer._hasSwipe = true;
+
+  outer.addEventListener('touchstart', e => {
+    rcTouchStartX = e.touches[0].clientX;
+    rcTouchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  outer.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - rcTouchStartX;
+    const dy = e.changedTouches[0].clientY - rcTouchStartY;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0) rcMove(1);
+      else rcMove(-1);
+    }
+  }, { passive: true });
+}
+
 function captureReceipt(scale) {
-  const card = $('printable-receipt-card');
+  const card = document.querySelector('#rc-track .rc-slide:nth-child(' + (currentCarouselIndex + 1) + ') #printable-receipt-card') || $('printable-receipt-card');
   if ($('rm')) $('rm').scrollTop = 0;
   const opts = {
     scale, backgroundColor: '#000', useCORS: true,
@@ -1733,8 +2043,6 @@ function captureReceipt(scale) {
 
 async function prepareReceiptCanvas() {
   try {
-    const card = $('printable-receipt-card');
-    if (!card) return;
     const canvas = await captureReceipt(2);
     preparedBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
   } catch(e) {
