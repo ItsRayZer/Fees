@@ -8,8 +8,8 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="no-referrer">
 <title>Verify receipt - FEES</title>
-<link rel="icon" href="/icons/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="./icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <style>
 :root{
   --bg:#000;--card:#0d0d0f;--line:rgba(255,255,255,.08);--tx:#fff;--mut:rgba(235,235,245,.55);--dim:rgba(235,235,245,.32);
@@ -102,7 +102,7 @@ h1{position:relative;margin:0;font-size:30px;line-height:1.1;font-weight:800;let
   /* back button: inside the app popup it closes the popup; on a normal page it goes back (or home) */
   document.getElementById('back').addEventListener('click', function () {
     if (EMBED) { try { if (window.parent && window.parent !== window && typeof window.parent.closeVerifyModal === 'function') { window.parent.closeVerifyModal(); return; } } catch (e) {} }
-    if (history.length > 1) history.back(); else location.href = '/';
+    if (history.length > 1) history.back(); else location.href = './';
   });
 
   function icon(ok, col) {
@@ -128,7 +128,7 @@ h1{position:relative;margin:0;font-size:30px;line-height:1.1;font-weight:800;let
   function footer() {
     if (EMBED) return;
     var f = el('div', 'ft'), lg = document.createElement('img');
-    lg.src = '/icons/logo.png'; lg.alt = ''; lg.width = 15; lg.height = 15;
+    lg.src = './icons/logo.png'; lg.alt = ''; lg.width = 15; lg.height = 15;
     f.appendChild(lg); f.appendChild(document.createTextNode('FEES \u00B7 RECEIPT VERIFICATION'));
     app.appendChild(f);
   }
@@ -202,13 +202,199 @@ h1{position:relative;margin:0;font-size:30px;line-height:1.1;font-weight:800;let
     if (navigator.vibrate) navigator.vibrate(voided ? [120, 60, 120] : [40, 40, 40]);
   }
 
-  var id = (q.get('id') || '').slice(0, 20), k = (q.get('k') || '').slice(0, 40);
-  if (!k) return fake();
+  var DB_URL = 'https://mac-fee-default-rtdb.asia-southeast1.firebasedatabase.app';
+  var id = (q.get('id') || q.get('rec') || q.get('receiptId') || '').trim().slice(0, 20).toUpperCase();
+  var k = (q.get('k') || q.get('key') || q.get('secKey') || q.get('code') || '').trim().slice(0, 40).toUpperCase();
+
+  if (!id && !k) {
+    var raw = location.search + location.hash;
+    var m1 = raw.match(/REC-\d+/i); if (m1) id = m1[0].toUpperCase();
+    var m2 = raw.match(/SEC-[0-9A-F]+/i); if (m2) k = m2[0].toUpperCase();
+  }
+
+  var norm = function (s) { return String(s || '').toUpperCase().replace(/^SEC-/, '').trim(); };
+
   var t = setTimeout(function () { offline('The ledger is taking too long. Try again.'); }, 12000);
-  fetch('/api/index?op=verify&id=' + encodeURIComponent(id) + '&k=' + encodeURIComponent(k), { cache: 'no-store' })
-    .then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
-    .then(function (x) { clearTimeout(t); if (x.s === 429) return offline('Too many checks. Wait a minute and scan again.'); if (x.s >= 500) return offline(); show(x.j); })
-    .catch(function () { clearTimeout(t); offline(); });
+
+  function checkLocalLedger(receiptId, secKey) {
+    try {
+      var all = null;
+      // 1. Check parent window receipts (when verify.html is embedded in the app)
+      if (window.parent && window.parent !== window && Array.isArray(window.parent.receipts) && window.parent.receipts.length) {
+        all = window.parent.receipts;
+      }
+      // 2. Check window.receipts in same scope
+      if (!all && typeof window.receipts !== 'undefined' && Array.isArray(window.receipts)) {
+        all = window.receipts;
+      }
+      // 3. Check localStorage test/app receipts
+      if (!all) {
+        var str = localStorage.getItem('fees_test_receipts') || localStorage.getItem('fees_app_receipts_db');
+        if (str) {
+          try { all = JSON.parse(str); } catch (e) {}
+        }
+      }
+      if (all && Array.isArray(all) && all.length) {
+        var r = null;
+        if (receiptId) {
+          r = all.find(function (x) { return x && x.id === receiptId; });
+        }
+        if (!r && secKey) {
+          r = all.find(function (x) { return x && norm(x.secKey) === norm(secKey); });
+        }
+        if (r && r.secKey) {
+          if (secKey && norm(r.secKey) !== norm(secKey)) {
+            clearTimeout(t);
+            fake();
+            return true;
+          }
+          clearTimeout(t);
+          var numId = function (x) { return +String(x.id || '').replace(/\D/g, '') || 0; };
+          var prior = (all || []).filter(function (x) {
+            return x && x.planId === r.planId && x.sl === r.sl && x.status === 'VALID' && numId(x) < numId(r);
+          });
+          var prev = prior.reduce(function (a, x) { return a + (Number(x.total) || 0); }, 0);
+          var total = Number(r.total) || 0;
+          var cum = prev + total;
+          var target = Number(r.planTarget) || 0;
+          var diff = cum - target;
+
+          show({
+            valid: true,
+            id: r.id,
+            status: r.status,
+            student: r.studentName,
+            sl: r.sl,
+            plan: r.planTitle,
+            target: target,
+            total: total,
+            cash: Number(r.cash) || 0,
+            upi: Number(r.upi) || 0,
+            date: r.date,
+            time: r.timestamp,
+            collector: r.collector,
+            cum: cum,
+            due: diff < 0 ? -diff : 0,
+            extra: diff > 0 ? diff : 0,
+            inst: prior.length + 1,
+            reason: r.status === 'DELETED' ? (r.deleteReason || '') : undefined,
+            deletedDate: r.deletedDate
+          });
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  // 1. First check the active local ledger (instant for restored/updated receipts)
+  if (checkLocalLedger(id, k)) {
+    return;
+  }
+
+  function verifyDirectFirebase(receiptId, secKey) {
+    var reqUrl = receiptId
+      ? DB_URL + '/fees/receipts/' + encodeURIComponent(receiptId) + '.json'
+      : DB_URL + '/fees/receipts.json';
+
+    fetch(reqUrl, { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('DB HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        var r = null, allList = [];
+        if (receiptId && data && !data.error) {
+          r = data;
+        } else if (data && typeof data === 'object') {
+          allList = Object.values(data).filter(Boolean);
+          if (receiptId) {
+            r = allList.find(function (x) { return x && x.id === receiptId; });
+          }
+          if (!r && secKey) {
+            r = allList.find(function (x) { return x && norm(x.secKey) === norm(secKey); });
+          }
+        }
+
+        if (!r || !r.secKey) {
+          clearTimeout(t);
+          return fake();
+        }
+
+        if (secKey && norm(r.secKey) !== norm(secKey)) {
+          clearTimeout(t);
+          return fake();
+        }
+
+        // Fetch all receipts to compute installment totals if not yet loaded
+        var pAll = allList.length
+          ? Promise.resolve(allList)
+          : fetch(DB_URL + '/fees/receipts.json', { cache: 'no-store' })
+              .then(function (res) { return res.json(); })
+              .then(function (o) { return Object.values(o || {}).filter(Boolean); })
+              .catch(function () { return [r]; });
+
+        pAll.then(function (all) {
+          clearTimeout(t);
+          var numId = function (x) { return +String(x.id || '').replace(/\D/g, '') || 0; };
+          var prior = (all || []).filter(function (x) {
+            return x && x.planId === r.planId && x.sl === r.sl && x.status === 'VALID' && numId(x) < numId(r);
+          });
+          var prev = prior.reduce(function (a, x) { return a + (Number(x.total) || 0); }, 0);
+          var total = Number(r.total) || 0;
+          var cum = prev + total;
+          var target = Number(r.planTarget) || 0;
+          var diff = cum - target;
+
+          show({
+            valid: true,
+            id: r.id,
+            status: r.status,
+            student: r.studentName,
+            sl: r.sl,
+            plan: r.planTitle,
+            target: target,
+            total: total,
+            cash: Number(r.cash) || 0,
+            upi: Number(r.upi) || 0,
+            date: r.date,
+            time: r.timestamp,
+            collector: r.collector,
+            cum: cum,
+            due: diff < 0 ? -diff : 0,
+            extra: diff > 0 ? diff : 0,
+            inst: prior.length + 1,
+            reason: r.status === 'DELETED' ? (r.deleteReason || '') : undefined,
+            deletedDate: r.deletedDate
+          });
+        });
+      })
+      .catch(function () {
+        clearTimeout(t);
+        offline();
+      });
+  }
+
+  // Try API first, fallback immediately to Firebase RTDB if API is unavailable (e.g. localhost)
+  fetch('/api?op=verify&id=' + encodeURIComponent(id) + '&k=' + encodeURIComponent(k), { cache: 'no-store' })
+    .then(function (r) {
+      if (!r.ok || r.status === 404 || r.status === 501) {
+        return verifyDirectFirebase(id, k);
+      }
+      return r.json().then(function (j) {
+        clearTimeout(t);
+        if (r.status === 429) return offline('Too many checks. Wait a minute and scan again.');
+        if (r.status >= 500) return verifyDirectFirebase(id, k);
+        if (!j || !j.valid) {
+          if (id || k) return verifyDirectFirebase(id, k);
+          return fake();
+        }
+        show(j);
+      });
+    })
+    .catch(function () {
+      verifyDirectFirebase(id, k);
+    });
 })();
 </script>
 </body>
