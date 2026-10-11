@@ -6,18 +6,18 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <title>FEES - Ledger & Receipt Manager</title>
-<link rel="stylesheet" href="/tailwind.css">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/icons/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="./tailwind.css">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FEES">
 <script>if(/[?&](id|k)=/.test(location.search))location.replace("/verify"+location.search);</script>
-<script src="/vendor/qrcode.min.js"></script>
-<script src="/vendor/html2canvas.min.js"></script>
-<script src="/vendor/jsQR.js"></script>
+<script src="./vendor/qrcode.min.js"></script>
+<script src="./vendor/html2canvas.min.js"></script>
+<script src="./vendor/jsQR.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
@@ -127,7 +127,7 @@ nav button.on { background: #fff; color: #000; }
 /* ---------- Timeline (History) ---------- */
 .tl-line{position:relative;padding-left:28px}
 .tl-line::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.05))}
-.tl-node{position:absolute;left:0;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;border:2px solid #000}
+.tl-node{position:absolute;left:4px;top:18px;width:10px;height:10px;border-radius:50%;border:2px solid #000;z-index:2}
 .tl-item{position:relative;margin-bottom:16px}
 .tl-time{font:700 10px 'JetBrains Mono',monospace;color:rgba(255,255,255,.35);letter-spacing:.04em}
 
@@ -197,7 +197,7 @@ nav button.on { background: #fff; color: #000; }
 <header class="sticky top-0 z-30 backdrop-blur-xl bg-black/75 border-b border-white/10" style="padding-top:env(safe-area-inset-top)">
   <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
     <div class="flex items-center gap-2 min-w-0">
-      <img src="/icons/logo.png" alt="FEES" width="34" height="34" class="shrink-0" style="width:34px;height:34px;object-fit:contain">
+      <img src="./icons/logo.png" alt="FEES" width="34" height="34" class="shrink-0" style="width:34px;height:34px;object-fit:contain">
     </div>
     
     <div class="flex items-center gap-2 shrink-0">
@@ -395,6 +395,9 @@ nav button.on { background: #fff; color: #000; }
     </div>
 
     <!-- CAROUSEL TRACK -->
+    <!-- STUDENT OVERPAYMENT & SETTLEMENT INFO CARD (FOR STUDENT PREVIEW) -->
+    <div id="rc-settlement-info" class="hide"></div>
+
     <div id="rc-outer" style="overflow:hidden;border-radius:32px">
       <div id="rc-track" class="rc-track">
         <!-- slides will be populated by renderInvoices / renderReceiptModal -->
@@ -476,6 +479,64 @@ nav button.on { background: #fff; color: #000; }
     <div><label class="lbl" for="po">Collected By</label><input id="po" class="inp" value="Class Rep (Aben)"></div>
     <div class="flex gap-2"><button type="button" class="btn b-ghost flex-1" onclick="hideModal('pm')">Cancel</button><button type="submit" class="btn b-main flex-1">Create Plan</button></div>
   </form>
+</div>
+
+<!-- SETTLEMENT CONFIRMATION MODAL -->
+<div id="settle-modal" class="hide fixed inset-0 z-[75] bg-black/85 backdrop-blur-xl flex items-center justify-center p-4">
+  <div class="card p-5 w-full max-w-sm space-y-4" style="background:#0c0c10;border:1px solid var(--line);border-radius:24px">
+    <div class="flex justify-between items-center">
+      <h2 class="font-extrabold text-base flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full" style="background:var(--cyan);box-shadow:0 0 8px var(--cyan)"></span>
+        <span>Confirm Settlement</span>
+      </h2>
+      <button type="button" class="text-xs font-bold text-white/60 hover:text-white p-2 -mr-2 cursor-pointer" onclick="closeSettleModal()">Close</button>
+    </div>
+
+    <div class="rounded-2xl p-3.5 space-y-1.5" style="background:rgba(255,255,255,.04);border:1px solid var(--line)">
+      <div class="text-xs font-bold truncate" id="sm-name">Student Name</div>
+      <div class="flex justify-between text-xs" style="color:var(--mut)">
+        <span>Total Extra Paid:</span>
+        <b class="font-mono text-white" id="sm-excess">₹0</b>
+      </div>
+      <div class="flex justify-between text-xs" style="color:var(--mut)">
+        <span>Already Settled:</span>
+        <b class="font-mono text-white" id="sm-already">₹0</b>
+      </div>
+      <div class="flex justify-between text-xs font-bold pt-1 border-t border-white/10" style="color:var(--cyan)">
+        <span>Pending to Refund:</span>
+        <b class="font-mono text-base" id="sm-open">₹0</b>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <div>
+        <label class="lbl" for="sm-amt">Repayment Amount (₹)</label>
+        <input id="sm-amt" type="number" min="1" class="inp font-mono" placeholder="Amount to refund">
+      </div>
+
+      <div>
+        <label class="lbl">Repaid Via</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" id="sm-mode-cash" class="btn b-ghost tg on" onclick="setSettleMode('CASH')">Cash</button>
+          <button type="button" id="sm-mode-upi" class="btn b-ghost tg" onclick="setSettleMode('GPAY')">UPI / GPay</button>
+        </div>
+      </div>
+
+      <div>
+        <label class="lbl" for="sm-note">Reference / Note (Optional)</label>
+        <input id="sm-note" class="inp" placeholder="e.g. Handed cash to student">
+      </div>
+    </div>
+
+    <div class="text-[11px] leading-relaxed p-2.5 rounded-xl" style="background:rgba(100,210,255,.08);color:var(--cyan)">
+      Confirm that extra money has been repaid to the student. Money in hand/UPI and total collected will decrease accordingly.
+    </div>
+
+    <div class="flex gap-2">
+      <button type="button" class="btn b-ghost flex-1" onclick="closeSettleModal()">Cancel</button>
+      <button type="button" class="btn b-main flex-1" onclick="confirmSettleExtra()">Confirm (PIN)</button>
+    </div>
+  </div>
 </div>
 
 <div id="pay-m" class="hide fixed inset-0 z-50 bg-black/85 backdrop-blur-xl overflow-y-auto p-4" onclick="if(event.target===this)closePay()">
@@ -678,7 +739,7 @@ const settleKey = (planId, sl) => (planId + '__s' + sl).replace(/[.#$\[\]\/]/g, 
 function studentState(sl) {
   const p = activePlan();
   const paid = paidTotalForStudent(sl);
-  const hasVoid = receipts.some(r => r.planId === p.id && r.sl === sl && r.status === 'VOID');
+  const hasVoid = isAdmin && receipts.some(r => r.planId === p.id && r.sl === sl && r.status === 'VOID');
   const excess = Math.max(0, paid - p.target);
   const settledAmt = (settled[settleKey(p.id, sl)] || {}).amount || 0;
   const openExcess = Math.max(0, excess - settledAmt);
@@ -810,19 +871,153 @@ function toast(msg, err) {
 function showModal(id) { if ($(id)) $(id).classList.remove('hide'); }
 function hideModal(id) { if ($(id)) $(id).classList.add('hide'); }
 
-/* ============ ADMIN AUTH (server side: the PIN is NOT in this file) ============ */
+/* ============ ADMIN AUTH (server side: verified via API, with localhost test fallback) ============ */
+const TEST_ADMIN_PIN = '482913';
+
 async function api(op, data, pin) {
+  const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   try {
     const r = await fetch('/api/index', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-Fees': '1' },
       body: JSON.stringify(Object.assign({ op }, data || {}, pin ? { pin } : {}))
     });
+    if (isLocal && (r.status === 404 || r.status === 501)) {
+      throw new Error('Local static server');
+    }
     const j = await r.json().catch(() => ({}));
     j.status = r.status; j.ok = r.ok && j.ok !== false;
     if (r.status === 401 && j.code === 'NOSESSION' && isAdmin) { setAdmin(false); toast('Session expired. Log in again.', 1); }
     return j;
-  } catch (e) { return { ok: false, status: 0, error: 'Cannot reach the server' }; }
+  } catch (e) {
+    if (isLocal) {
+      if (op === 'login') {
+        const ok = pin === TEST_ADMIN_PIN;
+        return { ok, status: ok ? 200 : 401, admin: ok, error: ok ? undefined : 'Incorrect PIN', left: ok ? undefined : 4 };
+      }
+      if (op === 'session') {
+        return { ok: true, status: 200, admin: isAdmin };
+      }
+      if (op === 'logout') {
+        return { ok: true, status: 200, admin: false };
+      }
+      if (op === 'phones') {
+        return { ok: true, status: 200, phones: {} };
+      }
+      if (op === 'void') {
+        const r = (receipts || []).find(x => x.id === data.id);
+        if (!r) return { ok: false, status: 404, error: 'Receipt not found' };
+        const next = r.status === 'VALID' ? 'VOID' : 'VALID';
+        r.status = next;
+        sv('fees_app_receipts_db', receipts);
+        schedulePaint();
+        return { ok: true, status: 200, receiptStatus: next };
+      }
+      if (op === 'restore') {
+        const r = (receipts || []).find(x => x.id === data.id);
+        if (!r) return { ok: false, status: 404, error: 'Receipt not found' };
+        r.status = 'VALID';
+        delete r.deleteReason;
+        delete r.deletedDate;
+        sv('fees_app_receipts_db', receipts);
+        schedulePaint();
+        return { ok: true, status: 200 };
+      }
+      if (op === 'delete') {
+        const r = (receipts || []).find(x => x.id === data.id);
+        if (!r) return { ok: false, status: 404, error: 'Receipt not found' };
+        r.status = 'DELETED';
+        r.deleteReason = data.reason || 'Admin deletion';
+        r.deletedDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        sv('fees_app_receipts_db', receipts);
+        schedulePaint();
+        return { ok: true, status: 200 };
+      }
+      if (op === 'issue') {
+        const ok = pin === TEST_ADMIN_PIN;
+        if (!ok) return { ok: false, status: 401, error: 'Incorrect PIN' };
+        const p = activePlan();
+        const sl = data.sl;
+        const s = R.find(x => x.sl === sl);
+        const num = counter++;
+        const id = 'REC-' + num;
+        const now = new Date();
+        const r = {
+          id, planId: p.id, planTitle: p.title, planTarget: p.target,
+          sl, studentName: s ? s.name : 'Student',
+          date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          timestamp: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          ts: now.getTime(),
+          cash: Number(data.cash) || 0, upi: Number(data.upi) || 0,
+          upiId: data.upiRef || 'N/A', total: (Number(data.cash) || 0) + (Number(data.upi) || 0),
+          collector: p.officer, secKey: 'SEC-' + Math.random().toString(16).slice(2, 10).toUpperCase(),
+          status: 'VALID'
+        };
+        receipts.unshift(r);
+        sv('fees_app_receipts_db', receipts);
+        schedulePaint();
+        return { ok: true, status: 200, receipt: r };
+      }
+      if (op === 'settle') {
+        const ok = pin === TEST_ADMIN_PIN;
+        if (!ok) return { ok: false, status: 401, error: 'Incorrect PIN' };
+        const p = activePlan();
+        const sl = data.sl;
+        const key = settleKey(p.id, sl);
+        const amt = Number(data.amount) || 0;
+        const mode = data.mode || 'CASH';
+        const cur = settled[key] || { amount: 0, cash: 0, upi: 0, log: {} };
+        const now = new Date();
+        const logId = 'log_' + Date.now();
+        cur.log = cur.log || {};
+        cur.log[logId] = {
+          id: logId, planId: p.id, sl,
+          studentName: data.studentName || '',
+          amount: amt, mode, note: data.note || '',
+          date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          ts: now.getTime(), status: 'SETTLED'
+        };
+        settled[key] = {
+          planId: p.id, sl,
+          amount: (Number(cur.amount) || 0) + amt,
+          cash: (Number(cur.cash) || 0) + (mode === 'CASH' ? amt : 0),
+          upi: (Number(cur.upi) || 0) + (mode === 'GPAY' ? amt : 0),
+          date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          log: cur.log
+        };
+        sv('fees_app_settled_db', settled);
+        schedulePaint();
+        return { ok: true, status: 200 };
+      }
+      if (op === 'handover') {
+        const p = activePlan();
+        const now = new Date();
+        const h = {
+          id: 'H_' + Date.now().toString(36).toUpperCase(),
+          planId: p.id,
+          amount: Number(data.amount) || 0,
+          mode: data.mode || 'CASH',
+          note: data.note || '',
+          date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          timestamp: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          ts: now.getTime()
+        };
+        handovers.unshift(h);
+        sv('fees_app_handovers_db', handovers);
+        schedulePaint();
+        return { ok: true, status: 200 };
+      }
+      if (op === 'unhandover') {
+        handovers = handovers.filter(x => x.id !== data.id);
+        sv('fees_app_handovers_db', handovers);
+        schedulePaint();
+        return { ok: true, status: 200 };
+      }
+      return { ok: true, status: 200 };
+    }
+    return { ok: false, status: 0, error: 'Cannot reach the server' };
+  }
 }
 
 function updateRoleUI() {
@@ -830,8 +1025,13 @@ function updateRoleUI() {
   if (btnLock) btnLock.textContent = isAdmin ? 'Lock Admin' : 'Admin';
   document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hide', !isAdmin));
   if ($('opt-del')) $('opt-del').hidden = !isAdmin;
+  const optVoidRoster = $('roster-filter') ? $('roster-filter').querySelector('option[value="VOID"]') : null;
+  if (optVoidRoster) optVoidRoster.hidden = !isAdmin;
+  const optVoidLedger = $('ledger-filter') ? $('ledger-filter').querySelector('option[value="VOID"]') : null;
+  if (optVoidLedger) optVoidLedger.hidden = !isAdmin;
   if (!isAdmin) {
-    if (ledgerFilter === 'DELETED') { ledgerFilter = 'ALL'; if ($('ledger-filter')) $('ledger-filter').value = 'ALL'; }
+    if (rosterFilter === 'VOID') { rosterFilter = 'ALL'; if ($('roster-filter')) $('roster-filter').value = 'ALL'; }
+    if (ledgerFilter === 'DELETED' || ledgerFilter === 'VOID') { ledgerFilter = 'ALL'; if ($('ledger-filter')) $('ledger-filter').value = 'ALL'; }
     const activeNav = document.querySelector('nav button.on');
     if (activeNav && activeNav.dataset.t === 'collect') switchTab('students');
   }
@@ -917,25 +1117,26 @@ function switchTab(name) {
 
 window.paintApp = function() {
   const p = activePlan();
-  let totalCollected = 0, fullClearedCount = 0, partialCount = 0, extraCount = 0;
-  
+  const fin = fundsStats(p.id);
+
+  let fullClearedCount = 0, partialCount = 0, extraCount = 0;
   R.forEach(s => {
-    const paidAmount = paidTotalForStudent(s.sl);
-    totalCollected += paidAmount;
-    if (paidAmount >= p.target && paidAmount > 0) fullClearedCount++;
-    else if (paidAmount > 0) partialCount++;
-    if (paidAmount > p.target) extraCount++;
+    const st = studentState(s.sl);
+    if (st.status === 'PAID') fullClearedCount++;
+    else if (st.status === 'PARTIAL') partialCount++;
+    else if (st.status === 'EXTRA') { fullClearedCount++; extraCount++; }
   });
-  
+
   const totalExpected = R.length * p.target;
-  const remainingTarget = Math.max(0, totalExpected - totalCollected);
 
   if ($('hero-title')) $('hero-title').textContent = p.title;
-  if ($('hero-collected')) $('hero-collected').textContent = inr(totalCollected);
-  if ($('hero-remaining')) $('hero-remaining').textContent = inr(remainingTarget) + ' remaining to collect';
-  if ($('hero-bar')) $('hero-bar').style.width = Math.min(100, (totalCollected / totalExpected) * 100) + '%';
+  // Collected Money: Display only the current total of Money in Hand + Money in UPI + Submitted to Miss
+  if ($('hero-collected')) $('hero-collected').textContent = inr(fin.grandCollected);
+  // Need to collect: Never negative, overpayments are not added to need to collect
+  if ($('hero-remaining')) $('hero-remaining').textContent = inr(fin.totalNeedToCollect) + ' remaining to collect';
+  if ($('hero-bar')) $('hero-bar').style.width = Math.min(100, Math.round(((totalExpected - fin.totalNeedToCollect) / totalExpected) * 100)) + '%';
   if ($('hero-cleared-count')) $('hero-cleared-count').textContent = `${fullClearedCount} of ${R.length} cleared`;
-  if ($('hero-breakdown-count')) $('hero-breakdown-count').textContent = `${partialCount} partial, ${R.length - fullClearedCount - partialCount} unpaid${extraCount ? ', ' + extraCount + ' extra' : ''}`;
+  if ($('hero-breakdown-count')) $('hero-breakdown-count').textContent = `${partialCount} partial, ${fin.pendingStudentsCount} unpaid${extraCount ? ', ' + extraCount + ' extra' : ''}`;
   if ($('next-rec-id')) $('next-rec-id').textContent = 'REC-' + counter;
 
   if ($('plan-select')) {
@@ -1202,7 +1403,7 @@ function renderRosterGrid() {
     if ((rosterFilter !== 'ALL' && rosterFilter !== st.status) || (queryText && !s.name.toLowerCase().includes(queryText) && String(s.sl) !== queryText)) return;
 
     const validReceipts = validReceiptsForStudent(s.sl);
-    const lastAny = receipts.find(r => r.planId === p.id && r.sl === s.sl && r.status !== 'DELETED');
+    const lastAny = isAdmin ? receipts.find(r => r.planId === p.id && r.sl === s.sl && r.status !== 'DELETED') : null;
     const viewId = validReceipts.length ? validReceipts[0].id : (lastAny ? lastAny.id : '');
     const chipLabel = st.status === 'EXTRA' ? '+' + inr(st.excess) + ' EXTRA' : st.status === 'VOID' ? 'VOIDED' : st.status;
     const full = st.paid >= p.target;
@@ -1248,10 +1449,10 @@ function renderRosterGrid() {
       extraRow = `<div class="rounded-xl p-2.5 text-xs flex items-center justify-between gap-2" style="background:rgba(100,210,255,.12);color:var(--cyan)">
         <span class="font-bold">${st.openExcess > 0 ? '+' + inr(st.openExcess) + ' extra money paid' : 'Extra ' + inr(st.excess) + ' settled'}</span>
         ${isAdmin ? (st.openExcess > 0
-          ? `<button type="button" class="btn b-ghost !py-1.5 !px-3 text-[11px]" onclick="settleExcess(${s.sl})">Mark settled</button>`
+          ? `<button type="button" class="btn b-ghost !py-1.5 !px-3 text-[11px]" onclick="openSettleModal(${s.sl})">Mark settled</button>`
           : `<span class="text-[11px] font-bold" style="color:var(--mut)">Settled ✓</span>`) : ''}
       </div>`;
-    } else if (st.status === 'VOID') {
+    } else if (isAdmin && st.status === 'VOID') {
       extraRow = `<div class="rounded-xl p-2.5 text-xs font-bold" style="background:rgba(255,55,95,.12);color:var(--pink)">Receipt voided. ${inr(p.target)} still due.</div>`;
     }
 
@@ -1333,7 +1534,7 @@ function getAllTimelineEvents(planId) {
   const p = activePlan();
 
   // 1. Receipts (Valid, Void, Deleted)
-  receipts.filter(r => r.planId === planId).forEach(r => {
+  receipts.filter(r => r.planId === planId && (isAdmin || r.status === 'VALID')).forEach(r => {
     let type = 'RECEIPT';
     if (r.status === 'DELETED') type = 'DELETED';
     else if (r.status === 'VOID') type = 'VOID';
@@ -1428,10 +1629,10 @@ function renderLedger() {
   const queryText = $('ledger-search') ? $('ledger-search').value.toLowerCase().trim() : '';
   const isTestDel = r => r.status === 'DELETED' && (r.deleteCat === 'TEST' || /^test entry/i.test(r.deleteReason || ''));
 
-  // Receipts base list
-  const all = receipts.filter(r => r.planId === p.id && (ledgerFilter === 'DELETED'
-    ? (isAdmin && r.status === 'DELETED')
-    : (r.status !== 'DELETED' || (isAdmin && !isTestDel(r)))));
+  // Receipts base list (hide void/deleted for students)
+  const all = receipts.filter(r => r.planId === p.id && (isAdmin
+    ? (ledgerFilter === 'DELETED' ? r.status === 'DELETED' : (r.status !== 'DELETED' || !isTestDel(r)))
+    : r.status === 'VALID'));
 
   // summary stats
   const valid = all.filter(r => r.status === 'VALID');
@@ -1440,7 +1641,7 @@ function renderLedger() {
   const upiIn = valid.reduce((a, r) => a + r.upi, 0);
   const extraTotal = R.reduce((a, s) => a + studentState(s.sl).excess, 0);
   const partialN = R.filter(s => studentState(s.sl).status === 'PARTIAL').length;
-  const voidN = all.filter(r => r.status === 'VOID').length;
+  const voidN = isAdmin ? receipts.filter(r => r.planId === p.id && r.status === 'VOID').length : 0;
   if ($('ledger-summary')) {
     $('ledger-summary').innerHTML = `
       <div class="stat col-span-2"><div class="text-[10px] font-mono uppercase tracking-widest" style="color:var(--mut)">total received</div><div class="text-2xl font-black font-mono" style="color:var(--green)">+${inr(totalIn)}</div></div>
@@ -1448,14 +1649,14 @@ function renderLedger() {
       <div class="stat"><div class="text-[10px] font-mono uppercase" style="color:var(--mut)">upi</div><div class="font-black font-mono" style="color:var(--cyan)">+${inr(upiIn)}</div></div>
       <div class="stat"><div class="text-[10px] font-mono uppercase" style="color:var(--mut)">partial students</div><div class="font-black font-mono" style="color:var(--yellow)">${partialN}</div></div>
       <div class="stat"><div class="text-[10px] font-mono uppercase" style="color:var(--mut)">extra money</div><div class="font-black font-mono" style="color:var(--cyan)">${extraTotal ? '+' + inr(extraTotal) : '₹0'}</div></div>
-      ${voidN ? `<div class="stat col-span-2"><span class="text-xs font-bold" style="color:var(--pink)">${voidN} voided receipt${voidN > 1 ? 's' : ''}</span></div>` : ''}`;
+      ${isAdmin && voidN ? `<div class="stat col-span-2"><span class="text-xs font-bold" style="color:var(--pink)">${voidN} voided receipt${voidN > 1 ? 's' : ''}</span></div>` : ''}`;
   }
 
   const view = views.ledger;
   const box = $('ledger-list');
   if (!box) return;
 
-  // TIMELINE VIEW: Shows all transactions in chronological timeline (newest on top)
+  // TIMELINE VIEW: Shows all transactions in clean chronological timeline (newest on top)
   if (view === 'timeline' || ledgerFilter === 'TIMELINE' || ledgerFilter === 'SETTLED' || ledgerFilter === 'HANDOVER') {
     let allEvents = getAllTimelineEvents(p.id);
 
@@ -1465,8 +1666,8 @@ function renderLedger() {
     else if (ledgerFilter === 'EXTRA') allEvents = allEvents.filter(e => e.type === 'RECEIPT' && getReceiptStatus(e.receipt) === 'EXTRA');
     else if (ledgerFilter === 'SETTLED') allEvents = allEvents.filter(e => e.type === 'SETTLED');
     else if (ledgerFilter === 'HANDOVER') allEvents = allEvents.filter(e => e.type === 'HANDOVER');
-    else if (ledgerFilter === 'VOID') allEvents = allEvents.filter(e => e.type === 'VOID');
-    else if (ledgerFilter === 'DELETED') allEvents = allEvents.filter(e => e.type === 'DELETED');
+    else if (isAdmin && ledgerFilter === 'VOID') allEvents = allEvents.filter(e => e.type === 'VOID');
+    else if (isAdmin && ledgerFilter === 'DELETED') allEvents = allEvents.filter(e => e.type === 'DELETED');
     else if (ledgerFilter === 'CASH') allEvents = allEvents.filter(e => e.cash > 0 || (e.type === 'SETTLED' && e.mode === 'CASH') || (e.type === 'HANDOVER' && e.mode === 'CASH'));
     else if (ledgerFilter === 'UPI') allEvents = allEvents.filter(e => e.upi > 0 || (e.type === 'SETTLED' && e.mode === 'UPI') || (e.type === 'HANDOVER' && e.mode === 'GPAY'));
 
@@ -1475,48 +1676,48 @@ function renderLedger() {
       allEvents = allEvents.filter(e => e.studentName.toLowerCase().includes(queryText) || e.id.toLowerCase().includes(queryText) || String(e.sl) === queryText);
     }
 
-    box.className = 'tl-line space-y-4 pt-2';
+    box.className = 'tl-line space-y-3 pt-1';
     if (!allEvents.length) {
-      box.innerHTML = '<div class="text-center py-12 text-sm" style="color:var(--mut)">No timeline events recorded yet.</div>';
+      box.innerHTML = '<div class="text-center py-12 text-sm" style="color:var(--mut)">No events recorded yet.</div>';
       return;
     }
 
-    box.innerHTML = allEvents.map((e, idx) => {
-      let nodeColor = '#30d158', nodeBg = 'rgba(48,209,88,.2)', nodeIcon = '✓', badgeCls = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+    box.innerHTML = allEvents.map((e) => {
+      let dotColor = '#30d158', badgeCls = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
       if (e.type === 'SETTLED') {
-        nodeColor = '#64d2ff'; nodeBg = 'rgba(100,210,255,.2)'; nodeIcon = '↩';
+        dotColor = '#64d2ff';
         badgeCls = 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20';
       } else if (e.type === 'HANDOVER') {
-        nodeColor = '#d6ff3f'; nodeBg = 'rgba(214,255,63,.2)'; nodeIcon = '↑';
+        dotColor = '#d6ff3f';
         badgeCls = 'text-lime-400 bg-lime-500/10 border-lime-500/20';
       } else if (e.type === 'VOID' || e.type === 'DELETED') {
-        nodeColor = '#ff375f'; nodeBg = 'rgba(255,55,95,.2)'; nodeIcon = '✕';
+        dotColor = '#ff375f';
         badgeCls = 'text-rose-400 bg-rose-500/10 border-rose-500/20';
       } else if (e.receipt && getReceiptStatus(e.receipt) === 'PARTIAL') {
-        nodeColor = '#ffd60a'; nodeBg = 'rgba(255,214,10,.2)'; nodeIcon = '•';
+        dotColor = '#ffd60a';
         badgeCls = 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
       } else if (e.receipt && getReceiptStatus(e.receipt) === 'EXTRA') {
-        nodeColor = '#bf5af2'; nodeBg = 'rgba(191,90,242,.2)'; nodeIcon = '+';
+        dotColor = '#bf5af2';
         badgeCls = 'text-purple-400 bg-purple-500/10 border-purple-500/20';
       }
 
       const isReceipt = !!e.receipt;
       const tapAction = isReceipt ? `onclick="openInvoices(${e.sl}, '${e.id}')"` : '';
-      const cursor = isReceipt ? 'cursor-pointer hover:border-white/30' : '';
+      const cursor = isReceipt ? 'cursor-pointer hover:border-white/20' : '';
 
       return `<div class="tl-item">
-        <div class="tl-node" style="color:${nodeColor};background:${nodeBg};border-color:#000">${nodeIcon}</div>
-        <div class="card p-4 space-y-2 border border-white/10 ${cursor}" ${tapAction}>
+        <div class="tl-node" style="background:${dotColor};box-shadow:0 0 8px ${dotColor}"></div>
+        <div class="card p-3.5 space-y-1.5 border border-white/10 ${cursor}" ${tapAction}>
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
-                <span class="font-bold text-sm truncate ${e.type === 'VOID' || e.type === 'DELETED' ? 'line-through text-rose-300' : ''}">${esc(e.studentName)}</span>
+                <span class="font-bold text-sm truncate">${esc(e.studentName)}</span>
                 ${e.sl ? `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-white/50">#${pad(e.sl)}</span>` : ''}
               </div>
               <div class="tl-time mt-0.5">${esc(e.date)} · ${esc(e.time || '')}</div>
             </div>
             <div class="text-right shrink-0">
-              <div class="font-black font-mono text-base" style="color:${nodeColor}">${e.type === 'SETTLED' ? '-' : '+'}${inr(e.amount)}</div>
+              <div class="font-black font-mono text-base" style="color:${dotColor}">${e.type === 'SETTLED' ? '-' : '+'}${inr(e.amount)}</div>
               <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border ${badgeCls}">${e.type}</span>
             </div>
           </div>
@@ -1612,16 +1813,80 @@ function renderLedger() {
   }).join('') || '<div class="text-center py-14 text-sm col-span-2" style="color:var(--mut)">No receipts match.</div>';
 }
 
-/* ============ FUNDS (cash / UPI submitted to Miss) ============ */
-function fundsStats() {
-  const p = activePlan();
+/* ============ FUNDS (cash / UPI submitted to Miss & Extra Money) ============ */
+function fundsStats(planId) {
+  const p = planId ? (plans.find(x => x.id === planId) || activePlan()) : activePlan();
   const vr = receipts.filter(r => r.planId === p.id && r.status === 'VALID');
-  const cashIn = vr.reduce((a, r) => a + r.cash, 0);
-  const upiIn = vr.reduce((a, r) => a + r.upi, 0);
+  const grossCashIn = vr.reduce((a, r) => a + r.cash, 0);
+  const grossUpiIn = vr.reduce((a, r) => a + r.upi, 0);
+  const grossCollected = grossCashIn + grossUpiIn;
+
   const hs = handovers.filter(h => h.planId === p.id);
   const cashOut = hs.filter(h => h.mode === 'CASH').reduce((a, h) => a + h.amount, 0);
   const gpayOut = hs.filter(h => h.mode === 'GPAY').reduce((a, h) => a + h.amount, 0);
-  return { cashIn, upiIn, cashOut, gpayOut, cashHand: cashIn - cashOut, upiHand: upiIn - gpayOut, hs };
+  const givenToMiss = cashOut + gpayOut;
+
+  // Extra money and settlements per student
+  let totalExtraCollected = 0;
+  let totalSettledCash = 0;
+  let totalSettledUpi = 0;
+  let totalNeedToCollect = 0;
+  let openExtraToRefund = 0;
+  let pendingStudentsCount = 0;
+
+  R.forEach(s => {
+    const paid = vr.filter(r => r.sl === s.sl).reduce((a, r) => a + r.total, 0);
+    const due = Math.max(0, p.target - paid);
+    totalNeedToCollect += due;
+    if (due > 0) pendingStudentsCount++;
+
+    const excess = Math.max(0, paid - p.target);
+    totalExtraCollected += excess;
+
+    const key = settleKey(p.id, s.sl);
+    const stObj = settled[key] || {};
+    const settledAmt = Number(stObj.amount) || 0;
+    const cRefund = Number(stObj.cash) || 0;
+    const uRefund = Number(stObj.upi) || 0;
+    const legacy = (stObj.cash == null && stObj.upi == null) ? settledAmt : 0;
+    totalSettledCash += cRefund + legacy;
+    totalSettledUpi += uRefund;
+
+    const openEx = Math.max(0, excess - settledAmt);
+    openExtraToRefund += openEx;
+  });
+
+  const totalSettledRefunded = totalSettledCash + totalSettledUpi;
+
+  // Cash and UPI currently in hand (after submitted to Miss AND after returning settled extra to students)
+  const cashHand = Math.max(0, grossCashIn - cashOut - totalSettledCash);
+  const upiHand = Math.max(0, grossUpiIn - gpayOut - totalSettledUpi);
+
+  // Collected Money: Display only the current total of Money in Hand + Money in UPI + Submitted to Miss
+  const grandCollected = cashHand + upiHand + givenToMiss;
+
+  return {
+    plan: p,
+    grossCashIn,
+    grossUpiIn,
+    grossCollected,
+    cashIn: grossCashIn,
+    upiIn: grossUpiIn,
+    cashOut,
+    gpayOut,
+    givenToMiss,
+    cashHand,
+    upiHand,
+    totalSettledCash,
+    totalSettledUpi,
+    totalSettledRefunded,
+    totalExtraCollected,
+    openExtraToRefund,
+    totalNeedToCollect,
+    grandCollected,
+    pendingStudentsCount,
+    hs
+  };
 }
 
 function setHandMode(m) {
@@ -1637,44 +1902,235 @@ function fillHandAll() {
   if ($('fm-amt')) $('fm-amt').value = Math.max(0, avail) || '';
 }
 
+let currentSettleSl = null;
+let currentSettleMode = 'CASH';
+
+function openSettleModal(sl) {
+  if (!isAdmin) { promptAdminPin(() => openSettleModal(sl)); return; }
+  currentSettleSl = sl;
+  const p = activePlan();
+  const s = R.find(x => x.sl === sl);
+  const st = studentState(sl);
+  if (!s || st.openExcess <= 0) return toast('No extra money to settle', 1);
+
+  currentSettleMode = 'CASH';
+  if ($('sm-name')) $('sm-name').textContent = `${s.name} (SL #${pad(sl)})`;
+  if ($('sm-excess')) $('sm-excess').textContent = inr(st.excess);
+  if ($('sm-already')) $('sm-already').textContent = inr(st.settledAmt);
+  if ($('sm-open')) $('sm-open').textContent = inr(st.openExcess);
+  if ($('sm-amt')) {
+    $('sm-amt').value = st.openExcess;
+    $('sm-amt').max = st.openExcess;
+  }
+  if ($('sm-note')) $('sm-note').value = '';
+  setSettleMode('CASH');
+  showModal('settle-modal');
+}
+
+function closeSettleModal() {
+  hideModal('settle-modal');
+  currentSettleSl = null;
+}
+
+function setSettleMode(m) {
+  currentSettleMode = m;
+  if ($('sm-mode-cash')) $('sm-mode-cash').classList.toggle('on', m === 'CASH');
+  if ($('sm-mode-upi')) $('sm-mode-upi').classList.toggle('on', m === 'GPAY');
+}
+
+async function confirmSettleExtra() {
+  if (!currentSettleSl) return;
+  const sl = currentSettleSl;
+  const p = activePlan();
+  const st = studentState(sl);
+  const s = R.find(x => x.sl === sl);
+  const amt = parseInt($('sm-amt') ? $('sm-amt').value : '0') || 0;
+  if (amt <= 0 || amt > st.openExcess) {
+    return toast(`Please enter a valid amount (1 to ${st.openExcess})`, 1);
+  }
+  const mode = currentSettleMode;
+  const note = ($('sm-note') ? $('sm-note').value.trim() : '') || 'Overpayment refunded';
+
+  askPin(async (pin) => {
+    const r = await api('settle', { planId: p.id, sl, amount: amt, mode, note, studentName: s ? s.name : '' }, pin);
+    if (r && r.ok) {
+      closeSettleModal();
+      toast(`Extra money of ${inr(amt)} for ${s ? s.name : 'Student'} marked as Settled`);
+      schedulePaint();
+      return { ok: true };
+    }
+    return r;
+  });
+}
+
+
+
 function renderFunds() {
   const el = $('funds-summary');
   if (!el) return;
   const st = fundsStats();
-  const total = st.cashIn + st.upiIn;
-  const out = st.cashOut + st.gpayOut;
-  const hand = st.cashHand + st.upiHand;
-  const pct = (a, b) => b > 0 ? Math.min(100, Math.round((a / b) * 100)) : 0;
-  const neg = st.cashHand < 0 || st.upiHand < 0;
+
+  // Students with overpayment in active plan
+  const studentsWithExtra = [];
+  R.forEach(s => {
+    const sState = studentState(s.sl);
+    if (sState.excess > 0) {
+      studentsWithExtra.push({
+        sl: s.sl,
+        name: s.name,
+        excess: sState.excess,
+        openExcess: sState.openExcess,
+        settledAmt: sState.settledAmt,
+        isSettled: sState.openExcess === 0
+      });
+    }
+  });
+
+  // All settlement history logs
+  const p = activePlan();
+  const allSettlementLogs = [];
+  Object.keys(settled).forEach(k => {
+    const sEntry = settled[k];
+    if (!sEntry || (sEntry.planId && sEntry.planId !== p.id)) return;
+    if (sEntry.log && typeof sEntry.log === 'object') {
+      Object.values(sEntry.log).forEach(l => {
+        if (l) allSettlementLogs.push(l);
+      });
+    } else if (sEntry.amount > 0) {
+      allSettlementLogs.push({
+        id: 'legacy_' + k,
+        studentName: sEntry.studentName || (R.find(x => x.sl === sEntry.sl) || {}).name || `SL #${pad(sEntry.sl)}`,
+        sl: sEntry.sl,
+        amount: sEntry.amount,
+        mode: 'CASH',
+        date: sEntry.date || 'Earlier',
+        time: '',
+        status: 'SETTLED'
+      });
+    }
+  });
+  allSettlementLogs.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
   el.innerHTML = `
-    <div class="card p-5 space-y-3">
-      <div class="flex justify-between items-end gap-3">
-        <div><div class="text-[10px] font-mono uppercase tracking-widest" style="color:var(--mut)">total collected</div>
-        <div class="text-3xl font-black font-mono" style="color:var(--green)">${inr(total)}</div></div>
-        <div class="text-right"><div class="text-[10px] font-mono uppercase tracking-widest" style="color:var(--mut)">given to miss</div>
-        <div class="text-xl font-black font-mono">${inr(out)}</div></div>
+    <!-- THREE SUMMARY CARDS REQUIRED BY USER -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+      <!-- 1. Total Grand Collected -->
+      <div class="card p-4 space-y-1.5" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">Total Grand Collected</span>
+          <span class="w-2 h-2 rounded-full" style="background:var(--green);box-shadow:0 0 8px var(--green)"></span>
+        </div>
+        <div class="text-2xl sm:text-3xl font-black font-mono tracking-tight" style="color:var(--green)">${inr(st.grandCollected)}</div>
+        <div class="text-[11px] font-medium truncate" style="color:var(--mut)">In Hand + UPI + Miss</div>
       </div>
-      <div class="rounded-2xl p-3 flex justify-between items-center" style="background:rgba(255,214,10,.12);color:var(--yellow)">
-        <span class="text-xs font-bold">Still with you (to submit)</span>
-        <span class="font-black font-mono text-lg">${inr(hand)}</span>
+
+      <!-- 2. Need to Collect -->
+      <div class="card p-4 space-y-1.5" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">Need to Collect</span>
+          <span class="w-2 h-2 rounded-full" style="background:var(--yellow);box-shadow:0 0 8px var(--yellow)"></span>
+        </div>
+        <div class="text-2xl sm:text-3xl font-black font-mono tracking-tight" style="color:var(--yellow)">${inr(st.totalNeedToCollect)}</div>
+        <div class="text-[11px] font-medium truncate" style="color:var(--mut)">${st.pendingStudentsCount} students pending</div>
+      </div>
+
+      <!-- 3. Given to Miss -->
+      <div class="card p-4 space-y-1.5" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">Given to Miss</span>
+          <span class="w-2 h-2 rounded-full" style="background:var(--cyan);box-shadow:0 0 8px var(--cyan)"></span>
+        </div>
+        <div class="text-2xl sm:text-3xl font-black font-mono tracking-tight" style="color:var(--cyan)">${inr(st.givenToMiss)}</div>
+        <div class="text-[11px] font-medium truncate" style="color:var(--mut)">${st.hs.length} submission${st.hs.length === 1 ? '' : 's'}</div>
       </div>
     </div>
-    <div class="grid grid-cols-2 gap-3">
-      <div class="card p-4 space-y-2">
-        <div class="text-xs font-bold">Cash in hand</div>
-        <div class="text-2xl font-black font-mono" style="color:${st.cashHand < 0 ? 'var(--pink)' : 'var(--lime)'}">${inr(st.cashHand)}</div>
-        <div class="h-1.5 rounded-full overflow-hidden" style="background:rgba(255,255,255,.1)"><div class="h-1.5 rounded-full" style="width:${pct(st.cashOut, st.cashIn)}%;background:var(--lime)"></div></div>
-        <div class="text-[11px]" style="color:var(--mut)">Collected ${inr(st.cashIn)}<br>Submitted ${inr(st.cashOut)}</div>
+
+    <!-- CASH & UPI IN HAND -->
+    <div class="grid grid-cols-2 gap-2.5">
+      <div class="card p-3.5 space-y-1" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
+        <div class="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">
+          <span>Cash in Hand</span>
+          <span class="chip !text-[9px] !py-0.5 !px-1.5" style="color:var(--lime)">CASH</span>
+        </div>
+        <div class="text-xl font-black font-mono" style="color:var(--lime)">${inr(st.cashHand)}</div>
+        <div class="text-[10px]" style="color:var(--mut)">Collected ${inr(st.grossCashIn)} · Miss ${inr(st.cashOut)}${st.totalSettledCash ? ` · Repaid ${inr(st.totalSettledCash)}` : ''}</div>
       </div>
-      <div class="card p-4 space-y-2">
-        <div class="text-xs font-bold">In UPI / GPay</div>
-        <div class="text-2xl font-black font-mono" style="color:${st.upiHand < 0 ? 'var(--pink)' : 'var(--cyan)'}">${inr(st.upiHand)}</div>
-        <div class="h-1.5 rounded-full overflow-hidden" style="background:rgba(255,255,255,.1)"><div class="h-1.5 rounded-full" style="width:${pct(st.gpayOut, st.upiIn)}%;background:var(--cyan)"></div></div>
-        <div class="text-[11px]" style="color:var(--mut)">Received ${inr(st.upiIn)}<br>Sent ${inr(st.gpayOut)}</div>
+      <div class="card p-3.5 space-y-1" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
+        <div class="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">
+          <span>In UPI / Bank</span>
+          <span class="chip !text-[9px] !py-0.5 !px-1.5" style="color:var(--cyan)">UPI</span>
+        </div>
+        <div class="text-xl font-black font-mono" style="color:var(--cyan)">${inr(st.upiHand)}</div>
+        <div class="text-[10px]" style="color:var(--mut)">Received ${inr(st.grossUpiIn)} · Sent ${inr(st.gpayOut)}${st.totalSettledUpi ? ` · Repaid ${inr(st.totalSettledUpi)}` : ''}</div>
       </div>
     </div>
-    ${neg ? '<div class="rounded-2xl p-3 text-xs font-bold" style="background:rgba(255,55,95,.12);color:var(--pink)">A negative balance means a receipt was voided after money was submitted. Check the ledger.</div>' : ''}`;
+
+    <!-- EXTRA MONEY & REFUNDS TRACKER -->
+    <div class="card p-4 space-y-3" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:20px">
+      <div class="flex justify-between items-start gap-2">
+        <div>
+          <div class="text-xs font-bold flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full" style="background:var(--cyan)"></span>
+            <span>Overpayments & Refunds (Extra Money)</span>
+          </div>
+          <p class="text-[11px] mt-0.5" style="color:var(--mut)">Overpayments tracked separately to be returned to students.</p>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">Pending Refund</div>
+          <div class="font-mono font-bold text-sm" style="color:${st.openExtraToRefund > 0 ? 'var(--yellow)' : 'var(--green)'}">${inr(st.openExtraToRefund)}</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-white/5">
+        <div><span style="color:var(--mut)">Total Extra Collected:</span> <b class="font-mono">${inr(st.totalExtraCollected)}</b></div>
+        <div class="text-right"><span style="color:var(--mut)">Already Repaid:</span> <b class="font-mono text-emerald-400">${inr(st.totalSettledRefunded)}</b></div>
+      </div>
+
+      ${studentsWithExtra.length ? `
+      <div class="space-y-1.5 pt-1">
+        ${studentsWithExtra.map(item => `
+          <div class="rounded-xl p-2.5 flex items-center justify-between gap-2" style="background:rgba(255,255,255,.03);border:1px solid var(--line)">
+            <div class="min-w-0">
+              <div class="font-bold text-xs truncate">${esc(item.name)} <span class="font-mono opacity-60">#${pad(item.sl)}</span></div>
+              <div class="text-[10px]" style="color:var(--mut)">Extra +${inr(item.excess)} · Repaid ${inr(item.settledAmt)}</div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="chip !text-[9px]" style="color:${item.isSettled ? 'var(--green)' : 'var(--yellow)'}">${item.isSettled ? 'SETTLED' : inr(item.openExcess) + ' PENDING'}</span>
+              ${isAdmin && item.openExcess > 0 ? `<button type="button" class="btn b-ghost !py-1 !px-2.5 text-[11px] font-bold" onclick="openSettleModal(${item.sl})">Mark as Settled</button>` : ''}
+              
+            </div>
+          </div>
+        `).join('')}
+      </div>` : '<div class="text-center py-3 text-xs" style="color:var(--mut)">No student has overpaid for this plan.</div>'}
+    </div>
+
+    <!-- SETTLEMENT HISTORY SECTION -->
+    <div class="card p-4 space-y-3" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:20px">
+      <div class="flex justify-between items-center">
+        <div class="text-xs font-bold flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full" style="background:var(--green)"></span>
+          <span>Settlement History (Repayments)</span>
+        </div>
+        <span class="text-[10px] font-mono font-bold" style="color:var(--green)">${allSettlementLogs.length} settled</span>
+      </div>
+
+      ${allSettlementLogs.length ? `
+      <div class="space-y-2">
+        ${allSettlementLogs.map(l => `
+          <div class="rounded-xl p-2.5 flex justify-between items-center gap-2" style="background:rgba(255,255,255,.03);border:1px solid var(--line)">
+            <div class="min-w-0">
+              <div class="font-bold text-xs truncate">${esc(l.studentName)} <span class="font-mono opacity-60">#${pad(l.sl)}</span></div>
+              <div class="text-[10px]" style="color:var(--mut)">${l.date}${l.time ? ' ' + l.time : ''} · ${l.mode === 'GPAY' ? 'UPI' : 'Cash'} refund${l.note ? ' · ' + esc(l.note) : ''}</div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="font-mono font-bold text-xs" style="color:var(--green)">-${inr(l.amount)}</div>
+              <span class="chip !text-[8px] !py-0 !px-1.5" style="color:var(--green)">SETTLED</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>` : '<div class="text-center py-3 text-xs" style="color:var(--mut)">No extra money has been settled yet.</div>'}
+    </div>
+  `;
 
   if ($('funds-form')) $('funds-form').classList.toggle('hide', !isAdmin);
   if ($('fm-avail')) {
@@ -1683,28 +2139,17 @@ function renderFunds() {
   }
 
   if ($('funds-history')) {
-    $('funds-history').innerHTML = st.hs.map(h => `<div class="card p-4 flex items-center justify-between gap-3">
+    $('funds-history').innerHTML = st.hs.map(h => `<div class="card p-3 flex items-center justify-between gap-3" style="background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px">
         <div class="min-w-0">
-          <div class="font-bold text-sm">${h.mode === 'CASH' ? 'Cash' : 'GPay'} to Miss</div>
-          <div class="text-xs" style="color:var(--mut)">${esc(h.date)}, ${esc(h.timestamp)}${h.note ? ' · ' + esc(h.note) : ''}</div>
+          <div class="font-bold text-xs">${h.mode === 'CASH' ? 'Cash' : 'GPay'} to Miss</div>
+          <div class="text-[10px]" style="color:var(--mut)">${esc(h.date)}, ${esc(h.timestamp)}${h.note ? ' · ' + esc(h.note) : ''}</div>
         </div>
         <div class="text-right shrink-0">
-          <div class="font-black font-mono" style="color:var(--green)">${inr(h.amount)}</div>
-          ${isAdmin ? `<button type="button" class="text-[11px] font-bold" style="color:var(--pink)" onclick="undoHandover('${esc(h.id)}')">Remove</button>` : ''}
+          <div class="font-black font-mono text-sm" style="color:var(--green)">${inr(h.amount)}</div>
+          ${isAdmin ? `<button type="button" class="text-[10px] font-bold" style="color:var(--pink)" onclick="undoHandover('${esc(h.id)}')">Remove</button>` : ''}
         </div>
-      </div>`).join('') || '<div class="text-center py-10 text-sm" style="color:var(--mut)">Nothing submitted to Miss yet.</div>';
+      </div>`).join('') || '<div class="text-center py-6 text-xs" style="color:var(--mut)">Nothing submitted to Miss yet.</div>';
   }
-}
-
-async function submitHandover() {
-  if (!isAdmin) { promptAdminPin(submitHandover); return; }
-  if (!online) return toast('No internet. Cannot save.', 1);
-  const amt = Math.floor(+($('fm-amt') ? $('fm-amt').value : 0) || 0);
-  if (amt <= 0) return toast('Enter an amount', 1);
-  const r = await api('handover', { planId: activePlan().id, mode: handMode, amount: amt, note: $('fm-note') ? $('fm-note').value.trim() : '' });
-  if (!r.ok) return toast(r.error || 'Could not save', 1);
-  if ($('fm-amt')) $('fm-amt').value = ''; if ($('fm-note')) $('fm-note').value = '';
-  toast(`${inr(amt)} submitted to Miss`);
 }
 
 async function undoHandover(id) {
@@ -1717,7 +2162,8 @@ async function undoHandover(id) {
 async function toggleVoidReceipt(id) {
   if (!isAdmin) { promptAdminPin(() => toggleVoidReceipt(id)); return; }
   const r = await api('void', { id });
-  toast(r.ok ? `${id} ${r.status === 'VOID' ? 'voided' : 'restored'}` : (r.error || 'Could not update'), !r.ok);
+  const isNowVoid = r.receiptStatus === 'VOID' || r.status === 'VOID';
+  toast(r.ok ? `${id} ${isNowVoid ? 'voided' : 'restored'}` : (r.error || 'Could not update'), !r.ok);
 }
 
 function formatWhatsAppPhone(phone) {
@@ -1819,7 +2265,7 @@ function buildReceiptCardHTML(r, isPreviewMode) {
         <div class="relative p-6 pb-7 space-y-5">
           <div class="flex items-center justify-between">
             <span class="font-mono text-[10px] font-bold tracking-widest px-3 py-1 rounded-full" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);display:inline-flex;align-items:center;gap:6px">
-              <img src="/icons/logo.png" alt="" width="14" height="14" style="width:14px;height:14px;object-fit:contain">RECEIPT
+              <img src="./icons/logo.png" alt="" width="14" height="14" style="width:14px;height:14px;object-fit:contain">RECEIPT
             </span>
             <span class="font-mono text-[11px] font-bold px-3 py-1 rounded-full" style="background:#fff;color:#000">${esc(r.id)}</span>
           </div>
@@ -1890,7 +2336,7 @@ function buildReceiptCardHTML(r, isPreviewMode) {
 
 function openInvoices(sl, targetId) {
   const p = activePlan();
-  const list = receipts.filter(r => r.planId === p.id && r.sl === sl && (r.status === 'VALID' || r.status === 'VOID' || (isAdmin && r.status === 'DELETED')))
+  const list = receipts.filter(r => r.planId === p.id && r.sl === sl && (isAdmin ? (r.status === 'VALID' || r.status === 'VOID' || r.status === 'DELETED') : r.status === 'VALID'))
                        .sort((a, b) => numId(a) - numId(b)); // chronological: 1st installment, 2nd, 3rd...
 
   if (!list.length) {
@@ -1960,7 +2406,7 @@ function renderCarouselUI(isPreviewMode = false) {
         if (isPreviewMode) {
           el.innerHTML = '<div style="font:700 9px monospace;color:#8e8e93;padding:4px;text-align:center">QR appears after confirm</div>';
         } else {
-          renderQRCode(el, PUBLIC_BASE + '/verify?id=' + encodeURIComponent(r.id) + '&k=' + encodeURIComponent(r.secKey));
+          renderQRCode(el, PUBLIC_BASE + '/verify.html?id=' + encodeURIComponent(r.id) + '&k=' + encodeURIComponent(r.secKey));
         }
       }
     });
@@ -2204,23 +2650,40 @@ function scanQRFile(input) {
 }
 
 /* ============ VERIFY (same minimal screen a phone shows after scanning the QR) ============ */
-const PUBLIC_BASE = 'https://fees-app.vercel.app';
+const PUBLIC_BASE = (window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '')) || 'https://fees-app.vercel.app';
 let vState = '';
 
 function extractVerifyTerms(val) {
+  if (!val) return { id: '', key: '' };
   let id = '', key = '';
-  try { const u = new URL(val); id = u.searchParams.get('id') || ''; key = u.searchParams.get('k') || ''; } catch (e) {}
-  if (!id && !key) {
+  try {
+    const u = new URL(val, window.location.origin);
+    id = u.searchParams.get('id') || u.searchParams.get('rec') || '';
+    key = u.searchParams.get('k') || u.searchParams.get('key') || u.searchParams.get('secKey') || u.searchParams.get('code') || '';
+  } catch (e) {}
+  if (!id) {
     const m1 = val.match(/REC-\d+/i); if (m1) id = m1[0];
-    const m2 = val.match(/SEC-[0-9A-F]{8,}/i); if (m2) key = m2[0];
   }
-  return { id: id.toUpperCase(), key: key.toUpperCase() };
+  if (!key) {
+    const m2 = val.match(/SEC-[0-9A-F]+/i);
+    if (m2) key = m2[0];
+    else {
+      const m3 = val.match(/\b([0-9A-Fa-f]{8,16})\b/);
+      if (m3 && !val.toUpperCase().includes('REC-')) key = 'SEC-' + m3[1];
+    }
+  }
+  if (id && !key && typeof receipts !== 'undefined') {
+    const cleanId = id.toUpperCase().trim();
+    const found = receipts.find(r => r.id === cleanId);
+    if (found && found.secKey && found.secKey !== 'PENDING') key = found.secKey;
+  }
+  return { id: id.toUpperCase().trim(), key: key.toUpperCase().trim() };
 }
 
 function showVerify(id, key) {
   const res = $('vr'); if (!res) return;
   res.classList.remove('hidden');
-  const src = '/verify?embed=1&id=' + encodeURIComponent(id) + '&k=' + encodeURIComponent(key);
+  const src = 'verify.html?embed=1&id=' + encodeURIComponent(id) + '&k=' + encodeURIComponent(key);
   if (vState === src) return;
   vState = src;
   res.innerHTML = '<iframe title="Receipt verification" src="' + src + '" style="width:100%;height:540px;border:0;border-radius:18px;background:#000"></iframe>';
@@ -2231,7 +2694,7 @@ function lookupVerification() {
   if (!res) return;
   if (!val) { res.classList.add('hidden'); res.innerHTML = ''; vState = ''; return; }
   const t = extractVerifyTerms(val);
-  if (!t.key) { res.classList.remove('hidden'); vState = ''; res.innerHTML = '<div class="text-xs" style="color:var(--mut)">Paste the full receipt link or scan the QR code.</div>'; return; }
+  if (!t.key && !t.id) { res.classList.remove('hidden'); vState = ''; res.innerHTML = '<div class="text-xs" style="color:var(--mut)">Paste receipt link, ID, or scan QR code.</div>'; return; }
   showVerify(t.id, t.key);
 }
 
@@ -2394,7 +2857,7 @@ function installApp() {
 window.addEventListener('DOMContentLoaded', () => {
   if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !isStandalone() && $('btn-install')) $('btn-install').classList.remove('hide');
 });
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 
 paintApp();
 </script>
