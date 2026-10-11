@@ -125,11 +125,9 @@ nav button.on { background: #fff; color: #000; }
 .rc-dot.on{background:#fff;width:18px;border-radius:5px}
 
 /* ---------- Timeline (History) ---------- */
-.tl-line{position:relative;padding-left:28px}
-.tl-line::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.05))}
-.tl-node{position:absolute;left:4px;top:18px;width:10px;height:10px;border-radius:50%;border:2px solid #000;z-index:2}
-.tl-item{position:relative;margin-bottom:16px}
-.tl-time{font:700 10px 'JetBrains Mono',monospace;color:rgba(255,255,255,.35);letter-spacing:.04em}
+.tl-line{position:relative;width:100%}
+.tl-item{position:relative;margin-bottom:10px;width:100%}
+.tl-time{font:700 10px 'JetBrains Mono',monospace;color:rgba(255,255,255,.45);letter-spacing:.04em}
 
 /* ---------- Settle modal ---------- */
 #settle-m{animation:moFade .22s ease both}
@@ -330,7 +328,10 @@ nav button.on { background: #fff; color: #000; }
           <label class="lbl !mb-0 cursor-pointer flex items-center gap-1.5"><input type="checkbox" id="chk-show-cleared" onchange="renderStudentDropdownList()"> Show cleared</label>
         </div>
         <div id="selected-student-card" class="hide"></div>
-        <input id="student-search-input" class="inp mb-2" placeholder="Search by student name or roll number" oninput="renderStudentDropdownList()" autocomplete="off">
+        <div class="flex gap-2 mb-2">
+          <input id="student-search-input" class="inp flex-1 min-w-0" placeholder="Search by student name or roll number" oninput="renderStudentDropdownList()" autocomplete="off">
+          <button type="button" id="btn-collect-search" class="btn b-main text-xs !py-2.5 !px-3.5 shrink-0" onclick="triggerCollectSearch()">Search</button>
+        </div>
         <div id="student-dropdown-list" class="overflow-y-auto" style="position:relative;max-height:220px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.03)"></div>
       </div>
 
@@ -364,8 +365,8 @@ nav button.on { background: #fff; color: #000; }
   <div class="text-center text-[10px] font-mono pt-6 pb-24" style="color:var(--mut)">FEES v5 · live sync</div>
 </main>
 
-<!-- FLOATING CIRCULAR SCAN QR BUTTON (BOTTOM RIGHT) -->
-<button type="button" onclick="openScanQR()" aria-label="Scan QR Code" class="fixed right-4 z-40 w-14 h-14 rounded-full bg-white text-black shadow-[0_8px_25px_rgba(255,255,255,0.25)] flex flex-col items-center justify-center border border-black/10 active:scale-90 transition-transform" style="bottom:calc(82px + env(safe-area-inset-bottom))">
+<!-- FLOATING ACTION BUTTON (SCANNER ON HISTORY/FUNDS, SEARCH ON STUDENTS) -->
+<button id="fab-action" type="button" onclick="openScanQR()" aria-label="Scan QR Code" title="Scan QR Code" class="fixed right-4 z-40 w-14 h-14 rounded-full bg-white text-black shadow-[0_8px_25px_rgba(255,255,255,0.25)] flex flex-col items-center justify-center border border-black/10 active:scale-90 transition-transform" style="bottom:calc(82px + env(safe-area-inset-bottom))">
   <svg class="w-6 h-6 text-black" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path stroke-linecap="round" stroke-linejoin="round" d="M3 7V5a2 2 0 012-2h2m12 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M12 9v6m-3-3h6" />
   </svg>
@@ -1097,6 +1098,39 @@ async function submitAdminPin() {
   else pinError(r);
 }
 
+function updateFabForTab(name) {
+  const fab = $('fab-action');
+  if (!fab) return;
+  if (name === 'students') {
+    fab.setAttribute('aria-label', 'Search Students');
+    fab.title = 'Search Students';
+    fab.onclick = activateStudentSearch;
+    fab.innerHTML = `<svg class="w-6 h-6 text-black" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>`;
+  } else {
+    fab.setAttribute('aria-label', 'Scan QR Code');
+    fab.title = 'Scan QR Code';
+    fab.onclick = openScanQR;
+    fab.innerHTML = `<svg class="w-6 h-6 text-black" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7V5a2 2 0 012-2h2m12 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M12 9v6m-3-3h6" /></svg>`;
+  }
+}
+
+function activateStudentSearch() {
+  const inp = $('roster-search');
+  if (inp) {
+    const y = inp.getBoundingClientRect().top + window.pageYOffset - 80;
+    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    setTimeout(() => { inp.focus(); inp.select && inp.select(); }, 150);
+  }
+}
+
+function triggerCollectSearch() {
+  const inp = $('student-search-input');
+  if (inp) {
+    inp.focus();
+    renderStudentDropdownList();
+  }
+}
+
 function switchTab(name) {
   if (name === 'collect' && !isAdmin) {
     toast('Admin PIN required to collect fees', 1);
@@ -1109,6 +1143,7 @@ function switchTab(name) {
   });
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t === name));
   if ($('hero')) $('hero').classList.toggle('hide', name !== 'students');   // plan summary only on Students
+  updateFabForTab(name);
   if (name === 'students') renderRosterGrid();
   if (name === 'ledger') renderLedger();
   if (name === 'funds') renderFunds();
@@ -1145,6 +1180,8 @@ window.paintApp = function() {
 
   updateRoleUI();
   syncViewButtons();
+  const curTab = (document.querySelector('nav button.on') || {}).dataset?.t || 'students';
+  updateFabForTab(curTab);
   renderStudentDropdownList();
   renderLedger();
   renderRosterGrid();
@@ -1676,28 +1713,28 @@ function renderLedger() {
       allEvents = allEvents.filter(e => e.studentName.toLowerCase().includes(queryText) || e.id.toLowerCase().includes(queryText) || String(e.sl) === queryText);
     }
 
-    box.className = 'tl-line space-y-3 pt-1';
+    box.className = 'tl-line space-y-2.5 pt-1 w-full';
     if (!allEvents.length) {
       box.innerHTML = '<div class="text-center py-12 text-sm" style="color:var(--mut)">No events recorded yet.</div>';
       return;
     }
 
     box.innerHTML = allEvents.map((e) => {
-      let dotColor = '#30d158', badgeCls = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+      let amtColor = '#30d158', badgeCls = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
       if (e.type === 'SETTLED') {
-        dotColor = '#64d2ff';
+        amtColor = '#64d2ff';
         badgeCls = 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20';
       } else if (e.type === 'HANDOVER') {
-        dotColor = '#d6ff3f';
+        amtColor = '#d6ff3f';
         badgeCls = 'text-lime-400 bg-lime-500/10 border-lime-500/20';
       } else if (e.type === 'VOID' || e.type === 'DELETED') {
-        dotColor = '#ff375f';
+        amtColor = '#ff375f';
         badgeCls = 'text-rose-400 bg-rose-500/10 border-rose-500/20';
       } else if (e.receipt && getReceiptStatus(e.receipt) === 'PARTIAL') {
-        dotColor = '#ffd60a';
+        amtColor = '#ffd60a';
         badgeCls = 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
       } else if (e.receipt && getReceiptStatus(e.receipt) === 'EXTRA') {
-        dotColor = '#bf5af2';
+        amtColor = '#bf5af2';
         badgeCls = 'text-purple-400 bg-purple-500/10 border-purple-500/20';
       }
 
@@ -1705,26 +1742,25 @@ function renderLedger() {
       const tapAction = isReceipt ? `onclick="openInvoices(${e.sl}, '${e.id}')"` : '';
       const cursor = isReceipt ? 'cursor-pointer hover:border-white/20' : '';
 
-      return `<div class="tl-item">
-        <div class="tl-node" style="background:${dotColor};box-shadow:0 0 8px ${dotColor}"></div>
-        <div class="card p-3.5 space-y-1.5 border border-white/10 ${cursor}" ${tapAction}>
+      return `<div class="tl-item w-full">
+        <div class="card p-3.5 space-y-2 border border-white/10 overflow-hidden w-full ${cursor}" ${tapAction}>
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <span class="font-bold text-sm truncate">${esc(e.studentName)}</span>
-                ${e.sl ? `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-white/50">#${pad(e.sl)}</span>` : ''}
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-bold text-sm truncate max-w-full text-white">${esc(e.studentName)}</span>
+                ${e.sl ? `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-white/60 shrink-0">#${pad(e.sl)}</span>` : ''}
               </div>
-              <div class="tl-time mt-0.5">${esc(e.date)} · ${esc(e.time || '')}</div>
+              <div class="tl-time mt-0.5">${esc(e.date)}${e.time ? ' · ' + esc(e.time) : ''}</div>
             </div>
             <div class="text-right shrink-0">
-              <div class="font-black font-mono text-base" style="color:${dotColor}">${e.type === 'SETTLED' ? '-' : '+'}${inr(e.amount)}</div>
-              <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border ${badgeCls}">${e.type}</span>
+              <div class="font-black font-mono text-base leading-tight" style="color:${amtColor}">${e.type === 'SETTLED' ? '-' : '+'}${inr(e.amount)}</div>
+              <span class="inline-block text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border mt-0.5 ${badgeCls}">${e.type}</span>
             </div>
           </div>
-          <div class="text-xs" style="color:var(--mut)">${esc(e.detail)}</div>
-          ${isReceipt ? `<div class="flex gap-2 pt-1 border-t border-white/5">
-            <button type="button" class="btn b-ghost !py-1 !px-2.5 text-[11px] flex-1" onclick="event.stopPropagation();openInvoices(${e.sl}, '${e.id}')">View Invoices</button>
-            ${isAdmin && phones[e.sl] && e.status !== 'DELETED' ? `<button type="button" class="btn b-ghost !py-1 !px-2.5 text-[11px]" onclick="event.stopPropagation();sendWhatsAppMsg('${e.id}')">WhatsApp</button>` : ''}
+          <div class="text-xs leading-relaxed text-white/60 break-words">${esc(e.detail)}</div>
+          ${isReceipt ? `<div class="flex flex-wrap gap-1.5 pt-1.5 border-t border-white/5">
+            <button type="button" class="btn b-ghost !py-1 !px-2.5 text-[11px] flex-1 min-w-[80px]" onclick="event.stopPropagation();openInvoices(${e.sl}, '${e.id}')">View Slip</button>
+            ${isAdmin && phones[e.sl] && e.status !== 'DELETED' ? `<button type="button" class="btn b-ghost !py-1 !px-2.5 text-[11px] shrink-0" onclick="event.stopPropagation();sendWhatsAppMsg('${e.id}')">WhatsApp</button>` : ''}
             ${isAdmin && e.status !== 'DELETED' ? `<button type="button" class="btn b-ghost !py-1 !px-2.5 text-[11px]" style="color:var(--pink)" onclick="event.stopPropagation();openDeleteReceipt('${e.id}')">Delete</button>` : ''}
           </div>` : ''}
         </div>
@@ -2012,123 +2048,80 @@ function renderFunds() {
   allSettlementLogs.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
   el.innerHTML = `
-    <!-- THREE SUMMARY CARDS REQUIRED BY USER -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-      <!-- 1. Total Grand Collected -->
-      <div class="card p-4 space-y-1.5" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">Total Grand Collected</span>
-          <span class="w-2 h-2 rounded-full" style="background:var(--green);box-shadow:0 0 8px var(--green)"></span>
+    <!-- COMBINED COMPACT SUMMARY CARD (TOTAL COLLECTED + NEED TO COLLECT + GIVEN TO MISS) -->
+    <div class="card p-4 space-y-3" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:20px">
+      <div class="grid grid-cols-2 gap-3 divide-x divide-white/10">
+        <div class="min-w-0 pr-2">
+          <div class="flex items-center gap-1.5 mb-1">
+            <span class="w-2 h-2 rounded-full" style="background:var(--green);box-shadow:0 0 8px var(--green)"></span>
+            <span class="text-[10px] font-mono uppercase tracking-wider text-white/60 truncate">Total Collected</span>
+          </div>
+          <div class="text-2xl sm:text-3xl font-black font-mono tracking-tight text-emerald-400 truncate">${inr(st.grandCollected)}</div>
+          <div class="text-[11px] text-white/50 truncate mt-0.5">Hand + UPI + Miss</div>
         </div>
-        <div class="text-2xl sm:text-3xl font-black font-mono tracking-tight" style="color:var(--green)">${inr(st.grandCollected)}</div>
-        <div class="text-[11px] font-medium truncate" style="color:var(--mut)">In Hand + UPI + Miss</div>
+        <div class="min-w-0 pl-3">
+          <div class="flex items-center gap-1.5 mb-1">
+            <span class="w-2 h-2 rounded-full" style="background:var(--yellow);box-shadow:0 0 8px var(--yellow)"></span>
+            <span class="text-[10px] font-mono uppercase tracking-wider text-white/60 truncate">Need to Collect</span>
+          </div>
+          <div class="text-2xl sm:text-3xl font-black font-mono tracking-tight text-yellow-400 truncate">${inr(st.totalNeedToCollect)}</div>
+          <div class="text-[11px] text-white/50 truncate mt-0.5">${st.pendingStudentsCount} students pending</div>
+        </div>
       </div>
-
-      <!-- 2. Need to Collect -->
-      <div class="card p-4 space-y-1.5" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">Need to Collect</span>
-          <span class="w-2 h-2 rounded-full" style="background:var(--yellow);box-shadow:0 0 8px var(--yellow)"></span>
+      <div class="pt-2.5 border-t border-white/10 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="w-2 h-2 rounded-full" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></span>
+          <span class="text-white/60 font-medium truncate">Submitted to Miss:</span>
+          <b class="font-mono text-cyan-400">${inr(st.givenToMiss)}</b>
         </div>
-        <div class="text-2xl sm:text-3xl font-black font-mono tracking-tight" style="color:var(--yellow)">${inr(st.totalNeedToCollect)}</div>
-        <div class="text-[11px] font-medium truncate" style="color:var(--mut)">${st.pendingStudentsCount} students pending</div>
-      </div>
-
-      <!-- 3. Given to Miss -->
-      <div class="card p-4 space-y-1.5" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">Given to Miss</span>
-          <span class="w-2 h-2 rounded-full" style="background:var(--cyan);box-shadow:0 0 8px var(--cyan)"></span>
-        </div>
-        <div class="text-2xl sm:text-3xl font-black font-mono tracking-tight" style="color:var(--cyan)">${inr(st.givenToMiss)}</div>
-        <div class="text-[11px] font-medium truncate" style="color:var(--mut)">${st.hs.length} submission${st.hs.length === 1 ? '' : 's'}</div>
+        <span class="text-[11px] font-mono text-white/40 shrink-0">${st.hs.length} submission${st.hs.length === 1 ? '' : 's'}</span>
       </div>
     </div>
 
     <!-- CASH & UPI IN HAND -->
     <div class="grid grid-cols-2 gap-2.5">
-      <div class="card p-3.5 space-y-1" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
+      <div class="card p-3.5 space-y-1 overflow-hidden" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
         <div class="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">
           <span>Cash in Hand</span>
           <span class="chip !text-[9px] !py-0.5 !px-1.5" style="color:var(--lime)">CASH</span>
         </div>
-        <div class="text-xl font-black font-mono" style="color:var(--lime)">${inr(st.cashHand)}</div>
-        <div class="text-[10px]" style="color:var(--mut)">Collected ${inr(st.grossCashIn)} · Miss ${inr(st.cashOut)}${st.totalSettledCash ? ` · Repaid ${inr(st.totalSettledCash)}` : ''}</div>
+        <div class="text-xl font-black font-mono truncate" style="color:var(--lime)">${inr(st.cashHand)}</div>
+        <div class="text-[10px] text-white/50 truncate">Collected ${inr(st.grossCashIn)} · Miss ${inr(st.cashOut)}</div>
       </div>
-      <div class="card p-3.5 space-y-1" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
+      <div class="card p-3.5 space-y-1 overflow-hidden" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
         <div class="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">
           <span>In UPI / Bank</span>
           <span class="chip !text-[9px] !py-0.5 !px-1.5" style="color:var(--cyan)">UPI</span>
         </div>
-        <div class="text-xl font-black font-mono" style="color:var(--cyan)">${inr(st.upiHand)}</div>
-        <div class="text-[10px]" style="color:var(--mut)">Received ${inr(st.grossUpiIn)} · Sent ${inr(st.gpayOut)}${st.totalSettledUpi ? ` · Repaid ${inr(st.totalSettledUpi)}` : ''}</div>
+        <div class="text-xl font-black font-mono truncate" style="color:var(--cyan)">${inr(st.upiHand)}</div>
+        <div class="text-[10px] text-white/50 truncate">Received ${inr(st.grossUpiIn)} · Sent ${inr(st.gpayOut)}</div>
       </div>
     </div>
 
-    <!-- EXTRA MONEY & REFUNDS TRACKER -->
-    <div class="card p-4 space-y-3" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:20px">
-      <div class="flex justify-between items-start gap-2">
-        <div>
-          <div class="text-xs font-bold flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full" style="background:var(--cyan)"></span>
-            <span>Overpayments & Refunds (Extra Money)</span>
-          </div>
-          <p class="text-[11px] mt-0.5" style="color:var(--mut)">Overpayments tracked separately to be returned to students.</p>
-        </div>
-        <div class="text-right shrink-0">
-          <div class="text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">Pending Refund</div>
-          <div class="font-mono font-bold text-sm" style="color:${st.openExtraToRefund > 0 ? 'var(--yellow)' : 'var(--green)'}">${inr(st.openExtraToRefund)}</div>
-        </div>
+    <!-- EXTRA MONEY (MINIMALIST & COMPACT) -->
+    <div class="card p-3.5 space-y-2.5 overflow-hidden" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-white flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full" style="background:var(--cyan)"></span>
+          Extra Money
+        </span>
+        ${st.openExtraToRefund > 0 ? `<span class="chip !text-[10px]" style="color:var(--yellow)">${inr(st.openExtraToRefund)} TO REFUND</span>` : `<span class="chip !text-[10px]" style="color:var(--green)">ALL SETTLED</span>`}
       </div>
-
-      <div class="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-white/5">
-        <div><span style="color:var(--mut)">Total Extra Collected:</span> <b class="font-mono">${inr(st.totalExtraCollected)}</b></div>
-        <div class="text-right"><span style="color:var(--mut)">Already Repaid:</span> <b class="font-mono text-emerald-400">${inr(st.totalSettledRefunded)}</b></div>
-      </div>
-
       ${studentsWithExtra.length ? `
-      <div class="space-y-1.5 pt-1">
+      <div class="space-y-1.5">
         ${studentsWithExtra.map(item => `
-          <div class="rounded-xl p-2.5 flex items-center justify-between gap-2" style="background:rgba(255,255,255,.03);border:1px solid var(--line)">
-            <div class="min-w-0">
-              <div class="font-bold text-xs truncate">${esc(item.name)} <span class="font-mono opacity-60">#${pad(item.sl)}</span></div>
-              <div class="text-[10px]" style="color:var(--mut)">Extra +${inr(item.excess)} · Repaid ${inr(item.settledAmt)}</div>
+          <div class="rounded-xl p-2.5 flex items-center justify-between gap-2 overflow-hidden" style="background:rgba(255,255,255,.03);border:1px solid var(--line)">
+            <div class="min-w-0 flex-1">
+              <div class="font-bold text-xs truncate text-white">${esc(item.name)} <span class="font-mono text-[10px] text-white/50">#${pad(item.sl)}</span></div>
+              <div class="text-[11px] font-mono text-cyan-400 font-semibold">+${inr(item.excess)} extra</div>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="chip !text-[9px]" style="color:${item.isSettled ? 'var(--green)' : 'var(--yellow)'}">${item.isSettled ? 'SETTLED' : inr(item.openExcess) + ' PENDING'}</span>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="chip !text-[9px] !py-0.5 !px-2" style="color:${item.isSettled ? 'var(--green)' : 'var(--yellow)'}">${item.isSettled ? 'Settled ✓' : 'Pending'}</span>
               ${isAdmin && item.openExcess > 0 ? `<button type="button" class="btn b-ghost !py-1 !px-2.5 text-[11px] font-bold" onclick="openSettleModal(${item.sl})">Mark as Settled</button>` : ''}
-              
             </div>
           </div>
         `).join('')}
-      </div>` : '<div class="text-center py-3 text-xs" style="color:var(--mut)">No student has overpaid for this plan.</div>'}
-    </div>
-
-    <!-- SETTLEMENT HISTORY SECTION -->
-    <div class="card p-4 space-y-3" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:20px">
-      <div class="flex justify-between items-center">
-        <div class="text-xs font-bold flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full" style="background:var(--green)"></span>
-          <span>Settlement History (Repayments)</span>
-        </div>
-        <span class="text-[10px] font-mono font-bold" style="color:var(--green)">${allSettlementLogs.length} settled</span>
-      </div>
-
-      ${allSettlementLogs.length ? `
-      <div class="space-y-2">
-        ${allSettlementLogs.map(l => `
-          <div class="rounded-xl p-2.5 flex justify-between items-center gap-2" style="background:rgba(255,255,255,.03);border:1px solid var(--line)">
-            <div class="min-w-0">
-              <div class="font-bold text-xs truncate">${esc(l.studentName)} <span class="font-mono opacity-60">#${pad(l.sl)}</span></div>
-              <div class="text-[10px]" style="color:var(--mut)">${l.date}${l.time ? ' ' + l.time : ''} · ${l.mode === 'GPAY' ? 'UPI' : 'Cash'} refund${l.note ? ' · ' + esc(l.note) : ''}</div>
-            </div>
-            <div class="text-right shrink-0">
-              <div class="font-mono font-bold text-xs" style="color:var(--green)">-${inr(l.amount)}</div>
-              <span class="chip !text-[8px] !py-0 !px-1.5" style="color:var(--green)">SETTLED</span>
-            </div>
-          </div>
-        `).join('')}
-      </div>` : '<div class="text-center py-3 text-xs" style="color:var(--mut)">No extra money has been settled yet.</div>'}
+      </div>` : `<div class="text-center py-2 text-xs text-white/50">No extra money recorded.</div>`}
     </div>
   `;
 
