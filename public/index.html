@@ -703,8 +703,21 @@ let camStream = null;
 
 const activePlan = () => plans.find(p => p.id === activeId) || plans[0];
 const numId = r => +String(r.id || '').replace(/\D/g, '') || 0;
+function normalizeReceipt(r) {
+  if (!r || !/^REC-\d+$/.test(String(r.id || ''))) return null;
+  const rawTotal = Number(r.total);
+  const rawCash = Number(r.cash);
+  const rawUpi = Number(r.upi);
+  const total = Number.isFinite(rawTotal) ? rawTotal : (Number.isFinite(rawCash) ? rawCash : 0) + (Number.isFinite(rawUpi) ? rawUpi : 0);
+  const upi = Number.isFinite(rawUpi) ? rawUpi : 0;
+  const cash = Number.isFinite(rawCash) ? rawCash : Math.max(0, total - upi);
+  return Object.assign({}, r, { sl: Number(r.sl), cash, upi, total, status: String(r.status || 'VALID').toUpperCase() });
+}
+function normalizeReceipts(value) {
+  return Object.values(value || {}).map(normalizeReceipt).filter(Boolean).sort((a, b) => numId(b) - numId(a));
+}
 const validReceiptsForStudent = sl => receipts.filter(r => r.planId === activePlan().id && r.sl === sl && r.status === 'VALID');
-const paidTotalForStudent = sl => validReceiptsForStudent(sl).reduce((acc, r) => acc + r.total, 0);
+const paidTotalForStudent = sl => validReceiptsForStudent(sl).reduce((acc, r) => acc + (Number(r.total) || 0), 0);
 function mergeReceipts(incoming) {
   const byId = new Map(receipts.map(r => [r.id, r]));
   (incoming || []).filter(r => r && r.id).forEach(r => byId.set(r.id, r));
@@ -833,7 +846,7 @@ F.child('receipts').on('value', snap => {
     receipts = [];
     try { localStorage.removeItem('fees_app_receipts_db'); } catch (e) {}
   } else {
-    receipts = Object.values(v).filter(r => r && /^REC-\d+$/.test(r.id) && Number.isFinite(r.total) && Number.isFinite(r.cash) && Number.isFinite(r.upi)).sort((a, b) => numId(b) - numId(a));
+    receipts = normalizeReceipts(v);
     sv('fees_app_receipts_db', receipts);
   }
   syncCounterFloor();
@@ -875,7 +888,7 @@ async function refreshLiveData() {
     R = Object.values(students || {}).filter(x => x && Number.isInteger(x.sl) && typeof x.name === 'string').sort((a, b) => a.sl - b.sl);
     plans = Object.values(nextPlans || {}).filter(p => p && p.id && p.title && p.target > 0);
     if (!plans.some(p => p.id === activeId) && plans[0]) activeId = plans[0].id;
-    receipts = Object.values(nextReceipts || {}).filter(r => r && /^REC-\d+$/.test(r.id) && Number.isFinite(r.total) && Number.isFinite(r.cash) && Number.isFinite(r.upi)).sort((a, b) => numId(b) - numId(a));
+    receipts = normalizeReceipts(nextReceipts);
     counter = Number(nextCounter) || 1001;
     handovers = Object.values(nextHandovers || {}).filter(Boolean).sort((a, b) => (b.ts || 0) - (a.ts || 0));
     settled = nextSettled || {};
@@ -1767,8 +1780,8 @@ function renderLedger() {
 function fundsStats(planId) {
   const p = planId ? (plans.find(x => x.id === planId) || activePlan()) : activePlan();
   const vr = receipts.filter(r => r.planId === p.id && r.status === 'VALID');
-  const grossCashIn = vr.reduce((a, r) => a + r.cash, 0);
-  const grossUpiIn = vr.reduce((a, r) => a + r.upi, 0);
+  const grossCashIn = vr.reduce((a, r) => a + (Number(r.cash) || 0), 0);
+  const grossUpiIn = vr.reduce((a, r) => a + (Number(r.upi) || 0), 0);
   const grossCollected = grossCashIn + grossUpiIn;
 
   const hs = handovers.filter(h => h.planId === p.id);
@@ -1785,7 +1798,7 @@ function fundsStats(planId) {
   let pendingStudentsCount = 0;
 
   R.forEach(s => {
-    const paid = vr.filter(r => r.sl === s.sl).reduce((a, r) => a + r.total, 0);
+    const paid = vr.filter(r => r.sl === s.sl).reduce((a, r) => a + (Number(r.total) || 0), 0);
     const due = Math.max(0, p.target - paid);
     totalNeedToCollect += due;
     if (due > 0) pendingStudentsCount++;
