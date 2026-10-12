@@ -188,6 +188,44 @@ nav button.on { background: #fff; color: #000; }
   .v-in,.pay-in,.v-ring,.v-mark,.v-fill,.v-pulse,.v-badge.bad,.v-line,.v-grid b,.v-frame i,.cam-frame,.pay-glow::before,.qr-pop,#vm,#rm,#am,#sm,#pm,#pay-m,#vm>div,#am>div,#sm>form,#pm>form,#pay-m>div,#rm>div{animation-duration:.01ms!important;animation-delay:0s!important}
   .v-bar i{transition:none}
 }
+
+/* ===== FUNDS PAGE (clean, flat, Apple-style) ===== */
+.fx{display:flex;flex-direction:column;gap:12px}
+.fx-card{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:22px;padding:18px}
+.fx-cap{font:600 10.5px/1.3 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.fx-big{font:800 clamp(30px,9vw,40px)/1.05 'JetBrains Mono',monospace;letter-spacing:-.02em;margin-top:8px;overflow-wrap:anywhere}
+.fx-num{font:800 clamp(18px,5.4vw,22px)/1.15 'JetBrains Mono',monospace;margin-top:8px;overflow-wrap:anywhere}
+.fx-sub{font-size:12px;line-height:1.4;color:var(--mut);margin-top:5px;overflow-wrap:anywhere}
+.fx-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:14px}
+.fx-bar>i{display:block;height:100%;border-radius:99px;background:var(--green)}
+.fx-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.fx-sep{border-top:1px solid var(--line);margin-top:16px;padding-top:16px}
+.fx-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
+.fx-title{font-weight:800;font-size:15px}
+.fx-count{font:700 11px 'JetBrains Mono',monospace;color:var(--mut);white-space:nowrap}
+.fx-row{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:13px 0;border-top:1px solid var(--line)}
+.fx-head + .fx-row{border-top:0}
+.fx-main{min-width:0;flex:1}
+.fx-name{font-weight:700;font-size:13px;line-height:1.35;overflow-wrap:anywhere}
+.fx-id{font:600 10.5px 'JetBrains Mono',monospace;color:var(--mut);white-space:nowrap}
+.fx-meta{font-size:11px;line-height:1.4;color:var(--mut);margin-top:2px;overflow-wrap:anywhere}
+.fx-end{flex-shrink:0;text-align:right}
+.fx-amt{font:800 14px 'JetBrains Mono',monospace;white-space:nowrap}
+.fx-btn{margin-top:8px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid var(--line);color:#fff;font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer}
+.fx-btn:active{transform:scale(.96)}
+.fx-empty{padding:14px 0 6px;text-align:center;font-size:12px;color:var(--mut)}
+.fx-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:16px}
+.fx-tile{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center}
+.fx-tile b{display:block;font:800 20px/1.1 'JetBrains Mono',monospace}
+.fx-tile span{display:block;font-size:10.5px;color:var(--mut);margin-top:5px;font-weight:600}
+.fx-tl{position:relative;padding-left:22px}
+.fx-tl .it{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:0 0 18px}
+.fx-tl .it:last-child{padding-bottom:0}
+.fx-tl .it::before{content:"";position:absolute;left:-22px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--green)}
+.fx-tl .it::after{content:"";position:absolute;left:-18px;top:18px;bottom:-4px;width:1px;background:var(--line)}
+.fx-tl .it:last-child::after{display:none}
+.fx-tl .it.gp::before{background:var(--cyan)}
+.fx-rm{margin-top:4px;font-size:11px;font-weight:700;color:var(--pink);cursor:pointer}
 </style>
 </head>
 <body>
@@ -1829,6 +1867,7 @@ function fundsStats(planId) {
   });
 
   const totalSettledRefunded = totalSettledCash + totalSettledUpi;
+  const totalNeeded = R.length * p.target;
 
   // Cash and UPI currently in hand (after submitted to Miss AND after returning settled extra to students)
   const cashHand = Math.max(0, grossCashIn - cashOut - totalSettledCash);
@@ -1855,6 +1894,8 @@ function fundsStats(planId) {
     totalExtraCollected,
     openExtraToRefund,
     totalNeedToCollect,
+    totalNeeded,
+    studentCount: R.length,
     grandCollected,
     pendingStudentsCount,
     hs
@@ -1983,81 +2024,109 @@ function renderFunds() {
   });
   allSettlementLogs.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
+  // Extra-money groups
+  const needGive = studentsWithExtra.filter(i => i.openExcess > 0 && i.settledAmt <= 0);
+  const partialGive = studentsWithExtra.filter(i => i.openExcess > 0 && i.settledAmt > 0);
+  const fullyGiven = studentsWithExtra.filter(i => i.openExcess <= 0);
+  const extraTotal = st.totalExtraCollected;
+  const extraLeft = st.openExtraToRefund;
+  const extraGiven = Math.max(0, extraTotal - extraLeft);
+  const extraPct = extraTotal > 0 ? Math.min(100, Math.round(extraGiven / extraTotal * 100)) : 0;
+  const paidPart = Math.max(0, st.totalNeeded - st.totalNeedToCollect);
+  const collectPct = st.totalNeeded > 0 ? Math.min(100, Math.round(paidPart / st.totalNeeded * 100)) : 0;
+  const paidStudents = Math.max(0, st.studentCount - st.pendingStudentsCount);
+  const balanceInHand = st.cashHand + st.upiHand;
+
+  const extraRow = (i, partial) => `
+    <div class="fx-row">
+      <div class="fx-main">
+        <div class="fx-name">${esc(i.name)} <span class="fx-id">#${pad(i.sl)}</span></div>
+        <div class="fx-meta">${partial ? `Given ${inr(i.settledAmt)} of ${inr(i.excess)}` : `Paid extra ${inr(i.excess)}`}</div>
+      </div>
+      <div class="fx-end">
+        <div class="fx-amt" style="color:var(--yellow)">${inr(i.openExcess)}</div>
+        <div class="fx-meta">${partial ? 'left to give' : 'to give'}</div>
+        ${isAdmin ? `<button type="button" class="fx-btn" onclick="openSettleModal(${i.sl})">Mark as Settled</button>` : ''}
+      </div>
+    </div>`;
+
+  const extraSection = (title, list, partial, empty) => `
+    <div class="fx-card">
+      <div class="fx-head"><span class="fx-title">${title}</span><span class="fx-count">${list.length} student${list.length === 1 ? '' : 's'}</span></div>
+      ${list.length ? list.map(i => extraRow(i, partial)).join('') : `<div class="fx-empty">${empty}</div>`}
+    </div>`;
+
   el.innerHTML = `
-    <!-- COMBINED COMPACT SUMMARY CARD (TOTAL COLLECTED + NEED TO COLLECT + GIVEN TO MISS) -->
-    <div class="card p-4 space-y-3" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:20px">
-      <div class="grid grid-cols-2 gap-3 divide-x divide-white/10">
-        <div class="min-w-0 pr-2">
-          <div class="flex items-center gap-1.5 mb-1">
-            <span class="w-2 h-2 rounded-full" style="background:var(--green);box-shadow:0 0 8px var(--green)"></span>
-            <span class="text-[10px] font-mono uppercase tracking-wider text-white/60 truncate">Total Collected</span>
+    <div class="fx">
+      <!-- TOTALS -->
+      <div class="fx-card">
+        <div class="fx-cap">Total Collected</div>
+        <div class="fx-big" style="color:var(--green)">${inr(st.grandCollected)}</div>
+        <div class="fx-bar"><i style="width:${collectPct}%"></i></div>
+        <div class="fx-sub">${collectPct}% of target &middot; ${paidStudents} of ${st.studentCount} students paid</div>
+        <div class="fx-grid fx-sep">
+          <div>
+            <div class="fx-cap">Left to Collect</div>
+            <div class="fx-num" style="color:var(--yellow)">${inr(st.totalNeedToCollect)}</div>
+            <div class="fx-sub">${st.pendingStudentsCount} student${st.pendingStudentsCount === 1 ? '' : 's'} pending</div>
           </div>
-          <div class="text-2xl sm:text-3xl font-black font-mono tracking-tight text-emerald-400 truncate">${inr(st.grandCollected)}</div>
-          <div class="text-[11px] text-white/50 truncate mt-0.5">Hand + UPI + Miss</div>
-        </div>
-        <div class="min-w-0 pl-3">
-          <div class="flex items-center gap-1.5 mb-1">
-            <span class="w-2 h-2 rounded-full" style="background:var(--yellow);box-shadow:0 0 8px var(--yellow)"></span>
-            <span class="text-[10px] font-mono uppercase tracking-wider text-white/60 truncate">Need to Collect</span>
+          <div>
+            <div class="fx-cap">Total Needed</div>
+            <div class="fx-num">${inr(st.totalNeeded)}</div>
+            <div class="fx-sub">${inr(st.plan.target)} &times; ${st.studentCount} students</div>
           </div>
-          <div class="text-2xl sm:text-3xl font-black font-mono tracking-tight text-yellow-400 truncate">${inr(st.totalNeedToCollect)}</div>
-          <div class="text-[11px] text-white/50 truncate mt-0.5">${st.pendingStudentsCount} students pending</div>
         </div>
       </div>
-      <div class="pt-2.5 border-t border-white/10 flex items-center justify-between text-xs">
-        <div class="flex items-center gap-1.5 min-w-0">
-          <span class="w-2 h-2 rounded-full" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></span>
-          <span class="text-white/60 font-medium truncate">Submitted to Miss:</span>
-          <b class="font-mono text-cyan-400">${inr(st.givenToMiss)}</b>
-        </div>
-        <span class="text-[11px] font-mono text-white/40 shrink-0">${st.hs.length} submission${st.hs.length === 1 ? '' : 's'}</span>
-      </div>
-    </div>
 
-    <!-- CASH & UPI IN HAND -->
-    <div class="grid grid-cols-2 gap-2.5">
-      <div class="card p-3.5 space-y-1 overflow-hidden" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
-        <div class="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">
-          <span>Cash in Hand</span>
-          <span class="chip !text-[9px] !py-0.5 !px-1.5" style="color:var(--lime)">CASH</span>
-        </div>
-        <div class="text-xl font-black font-mono truncate" style="color:var(--lime)">${inr(st.cashHand)}</div>
-        <div class="text-[10px] text-white/50 truncate">Collected ${inr(st.grossCashIn)} · Miss ${inr(st.cashOut)}</div>
-      </div>
-      <div class="card p-3.5 space-y-1 overflow-hidden" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
-        <div class="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider" style="color:var(--mut)">
-          <span>In UPI / Bank</span>
-          <span class="chip !text-[9px] !py-0.5 !px-1.5" style="color:var(--cyan)">UPI</span>
-        </div>
-        <div class="text-xl font-black font-mono truncate" style="color:var(--cyan)">${inr(st.upiHand)}</div>
-        <div class="text-[10px] text-white/50 truncate">Received ${inr(st.grossUpiIn)} · Sent ${inr(st.gpayOut)}</div>
-      </div>
-    </div>
-
-    <!-- EXTRA MONEY (MINIMALIST & COMPACT) -->
-    <div class="card p-3.5 space-y-2.5 overflow-hidden" style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:18px">
-      <div class="flex items-center justify-between">
-        <span class="text-xs font-bold text-white flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full" style="background:var(--cyan)"></span>
-          Extra Money
-        </span>
-        ${st.openExtraToRefund > 0 ? `<span class="chip !text-[10px]" style="color:var(--yellow)">${inr(st.openExtraToRefund)} TO REFUND</span>` : `<span class="chip !text-[10px]" style="color:var(--green)">ALL SETTLED</span>`}
-      </div>
-      ${studentsWithExtra.length ? `
-      <div class="space-y-1.5">
-        ${studentsWithExtra.map(item => `
-          <div class="rounded-xl p-2.5 flex items-center justify-between gap-2 overflow-hidden" style="background:rgba(255,255,255,.03);border:1px solid var(--line)">
-            <div class="min-w-0 flex-1">
-              <div class="font-bold text-xs truncate text-white">${esc(item.name)} <span class="font-mono text-[10px] text-white/50">#${pad(item.sl)}</span></div>
-              <div class="text-[11px] font-mono text-cyan-400 font-semibold">+${inr(item.excess)} extra</div>
-            </div>
-            <div class="flex items-center gap-1.5 shrink-0">
-              <span class="chip !text-[9px] !py-0.5 !px-2" style="color:${item.isSettled ? 'var(--green)' : 'var(--yellow)'}">${item.isSettled ? 'Settled ✓' : 'Pending'}</span>
-              ${isAdmin && item.openExcess > 0 ? `<button type="button" class="btn b-ghost !py-1 !px-2.5 text-[11px] font-bold" onclick="openSettleModal(${item.sl})">Mark as Settled</button>` : ''}
-            </div>
+      <!-- MISS + BALANCE -->
+      <div class="fx-card">
+        <div class="fx-grid">
+          <div>
+            <div class="fx-cap">Submitted to Miss</div>
+            <div class="fx-num" style="color:var(--cyan)">${inr(st.givenToMiss)}</div>
+            <div class="fx-sub">${st.hs.length} submission${st.hs.length === 1 ? '' : 's'}</div>
           </div>
-        `).join('')}
-      </div>` : `<div class="text-center py-2 text-xs text-white/50">No extra money recorded.</div>`}
+          <div>
+            <div class="fx-cap">Balance in Hand</div>
+            <div class="fx-num">${inr(balanceInHand)}</div>
+            <div class="fx-sub">Cash + UPI</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CASH & UPI -->
+      <div class="fx-grid" style="gap:12px">
+        <div class="fx-card">
+          <div class="fx-cap">Cash in Hand</div>
+          <div class="fx-num" style="color:var(--lime)">${inr(st.cashHand)}</div>
+          <div class="fx-sub">Collected ${inr(st.grossCashIn)}<br>Given to Miss ${inr(st.cashOut)}</div>
+        </div>
+        <div class="fx-card">
+          <div class="fx-cap">In UPI</div>
+          <div class="fx-num" style="color:var(--cyan)">${inr(st.upiHand)}</div>
+          <div class="fx-sub">Received ${inr(st.grossUpiIn)}<br>Sent to Miss ${inr(st.gpayOut)}</div>
+        </div>
+      </div>
+
+      <!-- EXTRA MONEY OVERVIEW -->
+      <div class="fx-card">
+        <div class="fx-head">
+          <span class="fx-title">Extra Money</span>
+          ${extraLeft > 0 ? `<span class="chip" style="color:var(--yellow)">TO REFUND</span>` : `<span class="chip" style="color:var(--green)">ALL SETTLED</span>`}
+        </div>
+        <div class="fx-cap" style="margin-top:10px">Still to give back</div>
+        <div class="fx-big" style="color:var(--yellow);font-size:clamp(26px,8vw,34px)">${inr(extraLeft)}</div>
+        <div class="fx-bar"><i style="width:${extraPct}%;background:var(--cyan)"></i></div>
+        <div class="fx-sub">${inr(extraGiven)} of ${inr(extraTotal)} given back &middot; ${fullyGiven.length} of ${studentsWithExtra.length} students fully settled</div>
+        <div class="fx-tiles">
+          <div class="fx-tile"><b style="color:var(--green)">${fullyGiven.length}</b><span>Given</span></div>
+          <div class="fx-tile"><b style="color:var(--cyan)">${partialGive.length}</b><span>Partial</span></div>
+          <div class="fx-tile"><b style="color:var(--yellow)">${needGive.length}</b><span>Not yet</span></div>
+        </div>
+      </div>
+
+      ${extraSection('Extra money to give', needGive, false, 'No one is waiting for extra money.')}
+      ${extraSection('Partially given', partialGive, true, 'No partial refunds.')}
     </div>
   `;
 
@@ -2068,16 +2137,19 @@ function renderFunds() {
   }
 
   if ($('funds-history')) {
-    $('funds-history').innerHTML = st.hs.map(h => `<div class="card p-3 flex items-center justify-between gap-3" style="background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px">
-        <div class="min-w-0">
-          <div class="font-bold text-xs">${h.mode === 'CASH' ? 'Cash' : 'GPay'} to Miss</div>
-          <div class="text-[10px]" style="color:var(--mut)">${esc(h.date)}, ${esc(h.timestamp)}${h.note ? ' · ' + esc(h.note) : ''}</div>
-        </div>
-        <div class="text-right shrink-0">
-          <div class="font-black font-mono text-sm" style="color:var(--green)">${inr(h.amount)}</div>
-          ${isAdmin ? `<button type="button" class="text-[10px] font-bold" style="color:var(--pink)" onclick="undoHandover('${esc(h.id)}')">Remove</button>` : ''}
-        </div>
-      </div>`).join('') || '<div class="text-center py-6 text-xs" style="color:var(--mut)">Nothing submitted to Miss yet.</div>';
+    $('funds-history').innerHTML = st.hs.length ? `<div class="fx-card"><div class="fx-tl">${st.hs.map(h => `
+        <div class="it ${h.mode === 'CASH' ? '' : 'gp'}">
+          <div class="fx-main">
+            <div class="fx-name">${h.mode === 'CASH' ? 'Cash' : 'GPay'} to Miss</div>
+            <div class="fx-meta">${esc(h.date)}${h.timestamp ? ', ' + esc(h.timestamp) : ''}</div>
+            ${h.note ? `<div class="fx-meta">${esc(h.note)}</div>` : ''}
+          </div>
+          <div class="fx-end">
+            <div class="fx-amt" style="color:var(--green)">${inr(h.amount)}</div>
+            ${isAdmin ? `<button type="button" class="fx-rm" onclick="undoHandover('${esc(h.id)}')">Remove</button>` : ''}
+          </div>
+        </div>`).join('')}</div></div>`
+      : '<div class="fx-card"><div class="fx-empty">Nothing submitted to Miss yet.</div></div>';
   }
 }
 
