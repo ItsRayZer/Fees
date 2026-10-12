@@ -859,7 +859,36 @@ F.child('settled').on('value', snap => {
   settled = snap.val() || {};
   markLoaded('settled'); schedulePaint();
 });
-
+// REST polling is a reliability fallback for browsers/PWAs whose Firebase
+// realtime WebSocket is suspended, blocked, or stuck on an old connection.
+// It is read-only, bypasses all browser caches, and keeps every open client
+// converged on the same Firebase data written by the Vercel API.
+const LIVE_REFRESH_MS = 5000;
+async function refreshLiveData() {
+  if (document.hidden) return;
+  const base = firebaseConfig.databaseURL.replace(/\/$/, '');
+  const paths = ['students', 'plans', 'receipts', 'counter', 'handovers', 'settled'];
+  try {
+    const responses = await Promise.all(paths.map(path => fetch(`${base}/fees/${path}.json`, { cache: 'no-store', credentials: 'omit' })));
+    if (responses.some(r => !r.ok)) return;
+    const [students, nextPlans, nextReceipts, nextCounter, nextHandovers, nextSettled] = await Promise.all(responses.map(r => r.json()));
+    R = Object.values(students || {}).filter(x => x && Number.isInteger(x.sl) && typeof x.name === 'string').sort((a, b) => a.sl - b.sl);
+    plans = Object.values(nextPlans || {}).filter(p => p && p.id && p.title && p.target > 0);
+    if (!plans.some(p => p.id === activeId) && plans[0]) activeId = plans[0].id;
+    receipts = Object.values(nextReceipts || {}).filter(r => r && /^REC-\d+$/.test(r.id) && Number.isFinite(r.total) && Number.isFinite(r.cash) && Number.isFinite(r.upi)).sort((a, b) => numId(b) - numId(a));
+    counter = Number(nextCounter) || 1001;
+    handovers = Object.values(nextHandovers || {}).filter(Boolean).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    settled = nextSettled || {};
+    sv('fees_app_students_custom', R); sv('fees_app_plans', plans); sv('fees_app_receipts_db', receipts);
+    syncCounterFloor();
+    Object.keys(loaded).forEach(k => { loaded[k] = true; });
+    schedulePaint();
+  } catch (e) {
+    // Firebase listeners remain active; a temporary REST failure is harmless.
+  }
+}
+refreshLiveData();
+setInterval(refreshLiveData, LIVE_REFRESH_MS);
 function syncCounterFloor() {
   const maxId = receipts.reduce((m, r) => Math.max(m, numId(r)), 0);
   if (maxId >= counter) counter = maxId + 1;
