@@ -69,7 +69,7 @@ srv.listen(0, async () => {
     ok(r.j.receipt.total === 1440 && !r.j.receipt.phone && db.root.fees_private.phones.p5 === '9000000001', 'total computed server-side, phone kept private');
     const rec = r.j.receipt;
     r = await call(P, { op: 'issue', sl: 5, planId: 'plan1', cash: 10, pin: PIN }, { cookie });
-    ok(r.s === 409, 'cannot overpay a student already paid in full');
+    ok(r.s === 409 && r.j.receipts && r.j.receipts.length === 1 && r.j.receipts[0].id === rec.id, 'already-paid response returns existing invoice');
     r = await call(P, { op: 'issue', sl: 6, planId: 'plan1', cash: 99999999, pin: PIN }, { cookie });
     ok(r.s === 400, 'absurd amount rejected');
 

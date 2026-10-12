@@ -705,6 +705,13 @@ const activePlan = () => plans.find(p => p.id === activeId) || plans[0];
 const numId = r => +String(r.id || '').replace(/\D/g, '') || 0;
 const validReceiptsForStudent = sl => receipts.filter(r => r.planId === activePlan().id && r.sl === sl && r.status === 'VALID');
 const paidTotalForStudent = sl => validReceiptsForStudent(sl).reduce((acc, r) => acc + r.total, 0);
+function mergeReceipts(incoming) {
+  const byId = new Map(receipts.map(r => [r.id, r]));
+  (incoming || []).filter(r => r && r.id).forEach(r => byId.set(r.id, r));
+  receipts = Array.from(byId.values()).sort((a, b) => numId(b) - numId(a));
+  sv('fees_app_receipts_db', receipts);
+  syncCounterFloor();
+}
 
 function calcReceiptInstallment(r) {
   const prior = receipts.filter(x => x.planId === r.planId && x.sl === r.sl && x.status === 'VALID' && numId(x) < numId(r));
@@ -1275,10 +1282,18 @@ async function confirmAndIssueReceipt(pin) {
   if (!d) return { ok: true };
   const r = await api('issue', { sl: d.sl, planId: d.planId, cash: d.cash, upi: d.upi, upiRef: d.upiId === 'N/A' ? '' : d.upiId, phone: d.phone }, pin);
   if (!r.ok) {
-    if (r.status === 409) { draftReceipt = null; hideModal('rm'); toast(r.error, 1); return { ok: true }; }
+    if (r.status === 409) {
+      if (r.receipts && r.receipts.length) {
+        mergeReceipts(r.receipts);
+        draftReceipt = null; hideModal('rm'); paintApp();
+        toast('Existing invoice loaded. This student is already paid in full.', 1);
+      } else toast(r.error, 1);
+      return { ok: true };
+    }
     return r;
   }
   draftReceipt = null;
+  mergeReceipts([r.receipt]);
   if (d.phone) phones[d.sl] = d.phone;
   resetCollectForm();
   paintApp();

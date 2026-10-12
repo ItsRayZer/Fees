@@ -226,7 +226,10 @@ const OPS = {
     if (!student || !plan) return { code: 400, error: 'Unknown student or plan' };
     const all = list(rec);
     const paid = all.filter(x => x.planId === plan.id && x.sl === sl && x.status === 'VALID').reduce((a, x) => a + x.total, 0);
-    if (paid >= plan.target) return { code: 409, error: `${student.name} has already paid in full` };
+    if (paid >= plan.target) {
+      const existing = all.filter(x => x.planId === plan.id && x.sl === sl && x.status === 'VALID');
+      return { code: 409, error: `${student.name} has already paid in full`, receipts: existing };
+    }
     const maxId = all.reduce((m, x) => Math.max(m, numId(x)), 0);
     const tx = await db.ref('fees/counter').transaction(c => Math.max(c == null ? 1001 : c, maxId + 1, counter || 0) + 1);
     const num = tx.snapshot.val() - 1, id = 'REC-' + num, now = new Date();
@@ -417,7 +420,11 @@ async function handler(req, res) {
     }
     const out = await OPS[op](d);
     setCookie(res, req, makeToken(sess.iat), SESSION_MS / 1000);
-    if (out && out.code) return fail(res, out.code, out.error);
+    if (out && out.code) {
+      const extra = Object.assign({}, out);
+      delete extra.code; delete extra.error;
+      return fail(res, out.code, out.error, extra);
+    }
     return send(res, 200, out || {});
   } catch (e) {
     console.error('api error', e && e.message);
