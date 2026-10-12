@@ -700,7 +700,7 @@ let selectedSl = 0;
 let draftReceipt = null;
 let rosterFilter = 'ALL';
 let camStream = null;
-
+const pendingReceipts = new Map();
 const activePlan = () => plans.find(p => p.id === activeId) || plans[0];
 const numId = r => +String(r.id || '').replace(/\D/g, '') || 0;
 function normalizeReceipt(r) {
@@ -716,14 +716,24 @@ function normalizeReceipt(r) {
 function normalizeReceipts(value) {
   return Object.values(value || {}).map(normalizeReceipt).filter(Boolean).sort((a, b) => numId(b) - numId(a));
 }
-const validReceiptsForStudent = sl => receipts.filter(r => r.planId === activePlan().id && r.sl === sl && r.status === 'VALID');
-const paidTotalForStudent = sl => validReceiptsForStudent(sl).reduce((acc, r) => acc + (Number(r.total) || 0), 0);
-function mergeReceipts(incoming) {
-  const byId = new Map(receipts.map(r => [r.id, r]));
-  (incoming || []).filter(r => r && r.id).forEach(r => byId.set(r.id, r));
+function applyLiveReceipts(value) {
+  const incoming = normalizeReceipts(value);
+  const byId = new Map(incoming.map(r => [r.id, r]));
+  const now = Date.now();
+  pendingReceipts.forEach((r, id) => {
+    if (byId.has(id)) pendingReceipts.delete(id);
+    else if (now - (r._pendingAt || now) <= 30000) byId.set(id, r);
+    else pendingReceipts.delete(id);
+  });
   receipts = Array.from(byId.values()).sort((a, b) => numId(b) - numId(a));
   sv('fees_app_receipts_db', receipts);
   syncCounterFloor();
+}
+const validReceiptsForStudent = sl => receipts.filter(r => r.planId === activePlan().id && r.sl === sl && r.status === 'VALID');
+const paidTotalForStudent = sl => validReceiptsForStudent(sl).reduce((acc, r) => acc + (Number(r.total) || 0), 0);
+function mergeReceipts(incoming) {
+  (incoming || []).map(normalizeReceipt).filter(Boolean).forEach(r => pendingReceipts.set(r.id, Object.assign({}, r, { _pendingAt: Date.now() })));
+  applyLiveReceipts(receipts);
 }
 
 function calcReceiptInstallment(r) {
@@ -843,11 +853,9 @@ F.child('plans').on('value', snap => {
 F.child('receipts').on('value', snap => {
   const v = snap.val();
   if (v == null) {
-    receipts = [];
-    try { localStorage.removeItem('fees_app_receipts_db'); } catch (e) {}
+    applyLiveReceipts({});
   } else {
-    receipts = normalizeReceipts(v);
-    sv('fees_app_receipts_db', receipts);
+    applyLiveReceipts(v);
   }
   syncCounterFloor();
   markLoaded('receipts'); schedulePaint();
@@ -888,11 +896,11 @@ async function refreshLiveData() {
     R = Object.values(students || {}).filter(x => x && Number.isInteger(x.sl) && typeof x.name === 'string').sort((a, b) => a.sl - b.sl);
     plans = Object.values(nextPlans || {}).filter(p => p && p.id && p.title && p.target > 0);
     if (!plans.some(p => p.id === activeId) && plans[0]) activeId = plans[0].id;
-    receipts = normalizeReceipts(nextReceipts);
+    applyLiveReceipts(nextReceipts);
     counter = Number(nextCounter) || 1001;
     handovers = Object.values(nextHandovers || {}).filter(Boolean).sort((a, b) => (b.ts || 0) - (a.ts || 0));
     settled = nextSettled || {};
-    sv('fees_app_students_custom', R); sv('fees_app_plans', plans); sv('fees_app_receipts_db', receipts);
+    sv('fees_app_students_custom', R); sv('fees_app_plans', plans);
     syncCounterFloor();
     Object.keys(loaded).forEach(k => { loaded[k] = true; });
     schedulePaint();
@@ -1336,6 +1344,7 @@ async function confirmAndIssueReceipt(pin) {
   }
   draftReceipt = null;
   mergeReceipts([r.receipt]);
+  refreshLiveData();
   if (d.phone) phones[d.sl] = d.phone;
   resetCollectForm();
   paintApp();
