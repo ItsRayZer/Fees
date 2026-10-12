@@ -793,6 +793,7 @@ function schedulePaint() {
 
 function setSync() {}
 db.ref('.info/connected').on('value', s => { online = !!s.val(); setSync(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { try { db.goOnline(); } catch (e) {} } });
 
 function markLoaded(k) { loaded[k] = true; setSync(); }
 
@@ -872,152 +873,20 @@ function toast(msg, err) {
 function showModal(id) { if ($(id)) $(id).classList.remove('hide'); }
 function hideModal(id) { if ($(id)) $(id).classList.add('hide'); }
 
-/* ============ ADMIN AUTH (server side: verified via API, with localhost test fallback) ============ */
-const TEST_ADMIN_PIN = '482913';
-
+/* ============ ADMIN AUTH (server side: every admin action is verified by the API) ============ */
 async function api(op, data, pin) {
-  const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   try {
     const r = await fetch('/api/index', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-Fees': '1' },
       body: JSON.stringify(Object.assign({ op }, data || {}, pin ? { pin } : {}))
     });
-    if (isLocal && (r.status === 404 || r.status === 501)) {
-      throw new Error('Local static server');
-    }
     const j = await r.json().catch(() => ({}));
     j.status = r.status; j.ok = r.ok && j.ok !== false;
     if (r.status === 401 && j.code === 'NOSESSION' && isAdmin) { setAdmin(false); toast('Session expired. Log in again.', 1); }
     return j;
   } catch (e) {
-    if (isLocal) {
-      if (op === 'login') {
-        const ok = pin === TEST_ADMIN_PIN;
-        return { ok, status: ok ? 200 : 401, admin: ok, error: ok ? undefined : 'Incorrect PIN', left: ok ? undefined : 4 };
-      }
-      if (op === 'session') {
-        return { ok: true, status: 200, admin: isAdmin };
-      }
-      if (op === 'logout') {
-        return { ok: true, status: 200, admin: false };
-      }
-      if (op === 'phones') {
-        return { ok: true, status: 200, phones: {} };
-      }
-      if (op === 'void') {
-        const r = (receipts || []).find(x => x.id === data.id);
-        if (!r) return { ok: false, status: 404, error: 'Receipt not found' };
-        const next = r.status === 'VALID' ? 'VOID' : 'VALID';
-        r.status = next;
-        sv('fees_app_receipts_db', receipts);
-        schedulePaint();
-        return { ok: true, status: 200, receiptStatus: next };
-      }
-      if (op === 'restore') {
-        const r = (receipts || []).find(x => x.id === data.id);
-        if (!r) return { ok: false, status: 404, error: 'Receipt not found' };
-        r.status = 'VALID';
-        delete r.deleteReason;
-        delete r.deletedDate;
-        sv('fees_app_receipts_db', receipts);
-        schedulePaint();
-        return { ok: true, status: 200 };
-      }
-      if (op === 'delete') {
-        const r = (receipts || []).find(x => x.id === data.id);
-        if (!r) return { ok: false, status: 404, error: 'Receipt not found' };
-        r.status = 'DELETED';
-        r.deleteReason = data.reason || 'Admin deletion';
-        r.deletedDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        sv('fees_app_receipts_db', receipts);
-        schedulePaint();
-        return { ok: true, status: 200 };
-      }
-      if (op === 'issue') {
-        const ok = pin === TEST_ADMIN_PIN;
-        if (!ok) return { ok: false, status: 401, error: 'Incorrect PIN' };
-        const p = activePlan();
-        const sl = data.sl;
-        const s = R.find(x => x.sl === sl);
-        const num = counter++;
-        const id = 'REC-' + num;
-        const now = new Date();
-        const r = {
-          id, planId: p.id, planTitle: p.title, planTarget: p.target,
-          sl, studentName: s ? s.name : 'Student',
-          date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          timestamp: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          ts: now.getTime(),
-          cash: Number(data.cash) || 0, upi: Number(data.upi) || 0,
-          upiId: data.upiRef || 'N/A', total: (Number(data.cash) || 0) + (Number(data.upi) || 0),
-          collector: p.officer, secKey: 'SEC-' + Math.random().toString(16).slice(2, 10).toUpperCase(),
-          status: 'VALID'
-        };
-        receipts.unshift(r);
-        sv('fees_app_receipts_db', receipts);
-        schedulePaint();
-        return { ok: true, status: 200, receipt: r };
-      }
-      if (op === 'settle') {
-        const ok = pin === TEST_ADMIN_PIN;
-        if (!ok) return { ok: false, status: 401, error: 'Incorrect PIN' };
-        const p = activePlan();
-        const sl = data.sl;
-        const key = settleKey(p.id, sl);
-        const amt = Number(data.amount) || 0;
-        const mode = data.mode || 'CASH';
-        const cur = settled[key] || { amount: 0, cash: 0, upi: 0, log: {} };
-        const now = new Date();
-        const logId = 'log_' + Date.now();
-        cur.log = cur.log || {};
-        cur.log[logId] = {
-          id: logId, planId: p.id, sl,
-          studentName: data.studentName || '',
-          amount: amt, mode, note: data.note || '',
-          date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          ts: now.getTime(), status: 'SETTLED'
-        };
-        settled[key] = {
-          planId: p.id, sl,
-          amount: (Number(cur.amount) || 0) + amt,
-          cash: (Number(cur.cash) || 0) + (mode === 'CASH' ? amt : 0),
-          upi: (Number(cur.upi) || 0) + (mode === 'GPAY' ? amt : 0),
-          date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          log: cur.log
-        };
-        sv('fees_app_settled_db', settled);
-        schedulePaint();
-        return { ok: true, status: 200 };
-      }
-      if (op === 'handover') {
-        const p = activePlan();
-        const now = new Date();
-        const h = {
-          id: 'H_' + Date.now().toString(36).toUpperCase(),
-          planId: p.id,
-          amount: Number(data.amount) || 0,
-          mode: data.mode || 'CASH',
-          note: data.note || '',
-          date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          timestamp: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          ts: now.getTime()
-        };
-        handovers.unshift(h);
-        sv('fees_app_handovers_db', handovers);
-        schedulePaint();
-        return { ok: true, status: 200 };
-      }
-      if (op === 'unhandover') {
-        handovers = handovers.filter(x => x.id !== data.id);
-        sv('fees_app_handovers_db', handovers);
-        schedulePaint();
-        return { ok: true, status: 200 };
-      }
-      return { ok: true, status: 200 };
-    }
-    return { ok: false, status: 0, error: 'Cannot reach the server' };
+    return { ok: false, status: 0, error: 'Cannot reach the server. Check your connection and try again.' };
   }
 }
 
@@ -1403,7 +1272,6 @@ function requestPinToConfirmIssue() {
 async function confirmAndIssueReceipt(pin) {
   const d = draftReceipt;
   if (!d) return { ok: true };
-  if (!online) { toast('No internet - cannot save receipt', 1); return { ok: false, error: 'No internet connection' }; }
   const r = await api('issue', { sl: d.sl, planId: d.planId, cash: d.cash, upi: d.upi, upiRef: d.upiId === 'N/A' ? '' : d.upiId, phone: d.phone }, pin);
   if (!r.ok) {
     if (r.status === 409) { draftReceipt = null; hideModal('rm'); toast(r.error, 1); return { ok: true }; }
@@ -1566,12 +1434,14 @@ function filterLedger(f) {
   renderLedger();
 }
 
+const isTestDel = r => r.status === 'DELETED' && (r.deleteCat === 'TEST' || /^test entry/i.test(r.deleteReason || ''));
+
 function getAllTimelineEvents(planId) {
   const events = [];
   const p = activePlan();
 
   // 1. Receipts (Valid, Void, Deleted)
-  receipts.filter(r => r.planId === planId && (isAdmin || r.status === 'VALID')).forEach(r => {
+  receipts.filter(r => r.planId === planId && (isAdmin ? (ledgerFilter === 'DELETED' || !isTestDel(r)) : r.status === 'VALID')).forEach(r => {
     let type = 'RECEIPT';
     if (r.status === 'DELETED') type = 'DELETED';
     else if (r.status === 'VOID') type = 'VOID';
@@ -1664,7 +1534,6 @@ function getAllTimelineEvents(planId) {
 function renderLedger() {
   const p = activePlan();
   const queryText = $('ledger-search') ? $('ledger-search').value.toLowerCase().trim() : '';
-  const isTestDel = r => r.status === 'DELETED' && (r.deleteCat === 'TEST' || /^test entry/i.test(r.deleteReason || ''));
 
   // Receipts base list (hide void/deleted for students)
   const all = receipts.filter(r => r.planId === p.id && (isAdmin
@@ -2148,15 +2017,20 @@ function renderFunds() {
 async function undoHandover(id) {
   if (!isAdmin) { promptAdminPin(() => undoHandover(id)); return; }
   if (!confirm('Remove this submission entry?')) return;
-  const r = await api('unhandover', { id });
-  toast(r.ok ? 'Entry removed' : (r.error || 'Could not remove'), !r.ok);
+  askPin(async pin => {
+    const r = await api('unhandover', { id }, pin);
+    if (r.ok) toast('Entry removed');
+    return r;
+  });
 }
 
 async function toggleVoidReceipt(id) {
   if (!isAdmin) { promptAdminPin(() => toggleVoidReceipt(id)); return; }
-  const r = await api('void', { id });
-  const isNowVoid = r.receiptStatus === 'VOID' || r.status === 'VOID';
-  toast(r.ok ? `${id} ${isNowVoid ? 'voided' : 'restored'}` : (r.error || 'Could not update'), !r.ok);
+  askPin(async pin => {
+    const r = await api('void', { id }, pin);
+    if (r.ok) toast(`${id} ${r.status === 'VOID' ? 'voided' : 'restored'}`);
+    return r;
+  });
 }
 
 function formatWhatsAppPhone(phone) {
@@ -2329,7 +2203,7 @@ function buildReceiptCardHTML(r, isPreviewMode) {
 
 function openInvoices(sl, targetId) {
   const p = activePlan();
-  const list = receipts.filter(r => r.planId === p.id && r.sl === sl && (isAdmin ? (r.status === 'VALID' || r.status === 'VOID' || r.status === 'DELETED') : r.status === 'VALID'))
+  const list = receipts.filter(r => r.planId === p.id && r.sl === sl && (isAdmin ? (r.status === 'VALID' || r.status === 'VOID' || (r.status === 'DELETED' && !isTestDel(r))) : r.status === 'VALID'))
                        .sort((a, b) => numId(a) - numId(b)); // chronological: 1st installment, 2nd, 3rd...
 
   if (!list.length) {
@@ -2399,7 +2273,7 @@ function renderCarouselUI(isPreviewMode = false) {
         if (isPreviewMode) {
           el.innerHTML = '<div style="font:700 9px monospace;color:#8e8e93;padding:4px;text-align:center">QR appears after confirm</div>';
         } else {
-          renderQRCode(el, PUBLIC_BASE + '/verify.html?id=' + encodeURIComponent(r.id) + '&k=' + encodeURIComponent(r.secKey));
+          renderQRCode(el, 'https://fees-app.vercel.app/verify?id=' + encodeURIComponent(r.id) + '&k=' + encodeURIComponent(r.secKey));
         }
       }
     });
@@ -2792,7 +2666,6 @@ function submitDeleteReceipt() {
   const base = sel && sel !== 'Other' ? sel : '';
   const reason = (base && txt ? base + ': ' + txt : (txt || base)).slice(0, 160);
   if (!reason) return toast('Select or type a reason', 1);
-  if (!online) return toast('No internet. Cannot delete.', 1);
   const isTest = sel === 'Test entry';
   // PIN box opens ON TOP of this window (z-70), so it is visible immediately
   askPin(async pin => {

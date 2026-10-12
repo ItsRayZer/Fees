@@ -190,7 +190,7 @@ async function verify(req, res, q) {
 }
 
 /* ---------- admin operations ---------- */
-const SENSITIVE = new Set(['issue', 'delete', 'restore', 'settle']);   // need PIN again, every time
+const SENSITIVE = new Set(['issue', 'delete', 'restore', 'settle', 'unsettle', 'void', 'handover', 'unhandover']);   // need PIN again, every time
 
 async function migrate() {
   // moves phone numbers out of public data (one time)
@@ -373,7 +373,7 @@ async function handler(req, res) {
     if (req.method === 'GET' && q.op === 'verify') return await verify(req, res, q);
     if (req.method === 'GET' && q.op === 'health') {
       let sa = false; try { sa = !!getDb(); } catch (e) {}
-      return send(res, 200, { ADMIN_PIN: (process.env.ADMIN_PIN || '').length >= 6, SESSION_SECRET: (process.env.SESSION_SECRET || '').length >= 32, FIREBASE_SERVICE_ACCOUNT: sa });
+      return send(res, 200, { ready: (process.env.ADMIN_PIN || '').length >= 6 && (process.env.SESSION_SECRET || '').length >= 32 && sa });
     }
 
     if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');

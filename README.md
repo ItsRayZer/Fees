@@ -22,5 +22,12 @@
 New receipts encode `https://fees-app.vercel.app/verify?id=...&k=...`. Any scanner / Google Lens opens the minimal verified / fake screen.
 Old links (`/?id=...&k=...`) redirect there automatically.
 
+## Security notes
+- Every database write goes through `/api/index` (server). Firebase rules block all browser writes.
+- The admin session is an HttpOnly, SameSite=Strict cookie. The PIN is re-checked on the server for: issue, delete, restore, void, settle, un-settle, submit and remove-submission.
+- Wrong PINs are throttled per IP (5 tries, then a growing lock-out).
+- Phone numbers live in `fees_private`, which no browser can read.
+- `/api/index?op=health` only answers `{ready: true/false}`.
+
 ## Test
-`npm i && node tests/api.test.js`  (41 checks, in-memory database)
+`npm i && node tests/api.test.js`  (47 checks, in-memory database)

@@ -11,7 +11,7 @@ const db = fakeDb({
     plans: { plan1: { id: 'plan1', title: 'EXAM FEE 2026', target: 1440, officer: 'Class Rep' } },
     counter: 1001,
     phones: { p6: '9876543210' },
-    receipts: { 'REC-1000': { id: 'REC-1000', planId: 'plan1', planTitle: 'EXAM FEE 2026', planTarget: 1440, sl: 6, studentName: 'ABHIRAM V NAIR', cash: 500, upi: 0, total: 500, phone: '9876543210', secKey: 'SEC-0A1B2C3D', status: 'VALID', date: 'Oct 1, 2026', timestamp: '10:00 AM', collector: 'Class Rep' } }
+    receipts: { 'REC-1000': { id: 'REC-1000', planId: 'plan1', planTitle: 'EXAM FEE 2026', planTarget: 1440, sl: 6, studentName: 'ABHIRAM V NAIR', cash: 1500, upi: 0, total: 1500, phone: '9876543210', secKey: 'SEC-0A1B2C3D', status: 'VALID', date: 'Oct 1, 2026', timestamp: '10:00 AM', collector: 'Class Rep' } }
   }
 });
 handler.__setDb(db);
@@ -97,11 +97,15 @@ srv.listen(0, async () => {
     r = await call(P, { op: 'restore', id: rec.id, pin: PIN }, { cookie });
     ok(r.s === 200 && db.root.fees.receipts[rec.id].status === 'VALID', 'restore works with PIN');
 
-    r = await call(P, { op: 'handover', planId: 'plan1', mode: 'CASH', amount: 999999 }, { cookie });
+    r = await call(P, { op: 'handover', planId: 'plan1', mode: 'GPAY', amount: 500 }, { cookie, ip: '4.4.4.4' });
+    ok(r.s === 401, 'handover needs the PIN');
+    r = await call(P, { op: 'handover', planId: 'plan1', mode: 'CASH', amount: 999999, pin: PIN }, { cookie });
     ok(r.s === 409, 'cannot hand over more than collected');
-    r = await call(P, { op: 'handover', planId: 'plan1', mode: 'GPAY', amount: 500 }, { cookie });
+    r = await call(P, { op: 'handover', planId: 'plan1', mode: 'GPAY', amount: 500, pin: PIN }, { cookie });
     ok(r.s === 200, 'valid handover saved');
-    r = await call(P, { op: 'void', id: rec.id }, { cookie });
+    r = await call(P, { op: 'void', id: rec.id }, { cookie, ip: '5.5.5.5' });
+    ok(r.s === 401, 'void needs the PIN');
+    r = await call(P, { op: 'void', id: rec.id, pin: PIN }, { cookie });
     ok(r.s === 200 && r.j.status === 'VOID', 'void toggles');
     r = await call(P, { op: 'addStudent', name: 'NEW KID', sl: 70 }, { cookie });
     ok(r.s === 200 && db.root.fees.students.s70.name === 'NEW KID', 'add student');
