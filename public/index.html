@@ -468,6 +468,7 @@ nav button.on { background: #fff; color: #000; }
     <h2 class="font-extrabold text-lg">Add New Student</h2>
     <div><label class="lbl" for="sn">Full Student Name</label><input id="sn" class="inp" placeholder="John Doe" required></div>
     <div><label class="lbl" for="sl-num">Roll Number / SL Number</label><input id="sl-num" type="number" min="1" max="999" class="inp font-mono" placeholder="63" required></div>
+    <p class="text-xs" style="color:var(--mut)">This adds the student to the roster. The first invoice is created when you record a payment.</p>
     <div class="flex gap-2"><button type="button" class="btn b-ghost flex-1" onclick="hideModal('sm')">Cancel</button><button type="submit" class="btn b-main flex-1">Save Student</button></div>
   </form>
 </div>
@@ -2688,9 +2689,22 @@ window.addEventListener('DOMContentLoaded', () => { paintApp(); initSession(); }
 function addNewStudent(e) {
   e.preventDefault();
   if (!isAdmin) return promptAdminPin(() => addNewStudent(e));
-  api('addStudent', { name: $('sn').value, sl: $('sl-num').value }).then(r => {
-    if (!r.ok) return toast(r.error || 'Could not save', 1);
-    $('sn').value = ''; $('sl-num').value = ''; hideModal('sm'); toast('Student added');
+  const name = $('sn').value, sl = Number($('sl-num').value);
+  const submit = e.currentTarget && e.currentTarget.querySelector('button[type="submit"]');
+  if (submit) { submit.disabled = true; submit.textContent = 'Saving...'; }
+  api('addStudent', { name, sl }).then(r => {
+    if (!r.ok) { toast(r.error || 'Could not save', 1); return; }
+    const student = r.student || { sl, name: String(name).trim().toUpperCase() };
+    // Do not wait for Firebase's value listener before showing the new row.
+    R = R.filter(x => x.sl !== Number(student.sl)).concat(student).sort((a, b) => a.sl - b.sl);
+    sv('fees_app_students_custom', R);
+    $('sn').value = ''; $('sl-num').value = ''; hideModal('sm');
+    paintApp();
+    switchTab('collect');
+    selectStudent(Number(student.sl));
+    toast(r.alreadyExists ? 'Student already saved. Ready to record payment.' : 'Student added. Ready to record payment.');
+  }).finally(() => {
+    if (submit) { submit.disabled = false; submit.textContent = 'Save Student'; }
   });
 }
 function createNewPlan(e) {

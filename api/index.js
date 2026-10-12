@@ -352,9 +352,19 @@ const OPS = {
   async addStudent(d) {
     const sl = int(d.sl, 1, 999), name = clean(d.name, 60).toUpperCase();
     if (!sl || name.length < 2) return { code: 400, error: 'Enter name and roll number' };
-    if (await val('fees/students/s' + sl)) return { code: 409, error: 'That roll number already exists' };
-    await getDb().ref('fees/students/s' + sl).set({ sl, name });
-    return {};
+    const path = 'fees/students/s' + sl;
+    const current = await val(path);
+    if (current) {
+      // A lost response can cause the client to retry. Treat an identical
+      // retry as success, but never silently overwrite a different student.
+      if (Number(current.sl) === sl && clean(current.name, 60).toUpperCase() === name) {
+        return { student: current, alreadyExists: true };
+      }
+      return { code: 409, error: 'That roll number already exists' };
+    }
+    const student = { sl, name };
+    await getDb().ref(path).set(student);
+    return { student };
   },
   async addPlan(d) {
     const title = clean(d.title, 50).toUpperCase(), target = int(d.target, 1, MAX_AMOUNT);

@@ -108,7 +108,11 @@ srv.listen(0, async () => {
     r = await call(P, { op: 'void', id: rec.id, pin: PIN }, { cookie });
     ok(r.s === 200 && r.j.status === 'VOID', 'void toggles');
     r = await call(P, { op: 'addStudent', name: 'NEW KID', sl: 70 }, { cookie });
-    ok(r.s === 200 && db.root.fees.students.s70.name === 'NEW KID', 'add student');
+    ok(r.s === 200 && r.j.student.sl === 70 && db.root.fees.students.s70.name === 'NEW KID', 'add student');
+    r = await call(P, { op: 'addStudent', name: 'new kid', sl: 70 }, { cookie });
+    ok(r.s === 200 && r.j.alreadyExists === true, 'retrying the same student is idempotent');
+    r = await call(P, { op: 'addStudent', name: 'OTHER KID', sl: 70 }, { cookie });
+    ok(r.s === 409, 'different student cannot reuse an existing roll number');
     r = await call(P, { op: 'addPlan', title: 'class trip', target: 500, officer: 'Aben' }, { cookie });
     ok(r.s === 200 && Object.values(db.root.fees.plans).some(p => p.title === 'CLASS TRIP'), 'add plan');
     r = await call(P, { op: 'settle', planId: 'plan1', sl: 6 }, { cookie });
