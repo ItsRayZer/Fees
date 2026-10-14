@@ -1915,6 +1915,28 @@ function fillHandAll() {
   if ($('fm-amt')) $('fm-amt').value = Math.max(0, avail) || '';
 }
 
+async function submitHandover() {
+  if (!isAdmin) { promptAdminPin(() => submitHandover()); return; }
+  const p = activePlan();
+  const st = fundsStats(p.id);
+  const amount = parseInt($('fm-amt') ? $('fm-amt').value : '0', 10) || 0;
+  const available = handMode === 'CASH' ? st.cashHand : st.upiHand;
+  if (amount <= 0) return toast('Enter a valid amount', 1);
+  if (amount > available) return toast(`Only ${inr(Math.max(0, available))} available`, 1);
+  const note = ($('fm-note') ? $('fm-note').value.trim() : '');
+  askPin(async pin => {
+    const r = await api('handover', { planId: p.id, mode: handMode, amount, note }, pin);
+    if (r && r.ok) {
+      if ($('fm-amt')) $('fm-amt').value = '';
+      if ($('fm-note')) $('fm-note').value = '';
+      toast(`${handMode === 'CASH' ? 'Cash' : 'GPay'} submission recorded`);
+      refreshLiveData();
+      return { ok: true };
+    }
+    return r;
+  });
+}
+
 let currentSettleSl = null;
 let currentSettleMode = 'CASH';
 
