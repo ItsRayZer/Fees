@@ -1,9 +1,9 @@
 {
   "cleanUrls": true,
-  "routes": [
-    { "src": "/api(.*)", "dest": "/api/index.js" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/exam-fee-2026", "destination": "/" },
+    { "source": "/record-fe-plan-mv17r7eg945f", "destination": "/" },
+    { "source": "/record-fe-plan-mv17rl74e082", "destination": "/" }
   ],
   "headers": [
     {
