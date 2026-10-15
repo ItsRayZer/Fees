@@ -2,7 +2,7 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/:plan((?!api(?:/|$)|verify(?:/|$)|sw\\.js$|manifest\\.webmanifest$|tailwind\\.css$|icons(?:/|$)|vendor(?:/|$))[a-z0-9]+(?:-[a-z0-9]+)*)",
+      "source": "/:plan((?!api|verify|sw\\.js|manifest\\.webmanifest|tailwind\\.css|icons|vendor)[a-z0-9-]+)",
       "destination": "/index.html"
     }
   ],
