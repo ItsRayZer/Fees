@@ -2,7 +2,7 @@
   "cleanUrls": true,
   "rewrites": {
     "fallback": [
-      { "source": "/:path*", "destination": "/index.html" }
+      { "source": "/:path*", "destination": "/public/index.html" }
     ]
   },
   "headers": [
