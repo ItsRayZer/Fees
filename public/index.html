@@ -15,6 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FEES">
 <script>if(/[?&](id|k)=/.test(location.search))location.replace("/verify"+location.search);</script>
+<script>(function(){var p=location.pathname.replace(/^\/+|\/+$/g,'');if(!p&&!/[?&]app=1(?:&|$)/.test(location.search))document.documentElement.classList.add('plan-home-route');})();</script>
 <script src="./vendor/qrcode.min.js"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jsQR.js"></script>
@@ -226,9 +227,44 @@ nav button.on { background: #fff; color: #000; }
 .fx-tl .it:last-child::after{display:none}
 .fx-tl .it.gp::before{background:var(--cyan)}
 .fx-rm{margin-top:4px;font-size:11px;font-weight:700;color:var(--pink);cursor:pointer}
+#plan-landing{display:none;min-height:100dvh;padding:28px 16px 48px}
+html.plan-home-route body> *:not(#plan-landing){display:none!important}
+html.plan-home-route #plan-landing{display:block}
+.plan-home{max-width:720px;margin:0 auto}
+.plan-brand{display:flex;align-items:center;gap:10px;color:var(--mut);font:700 11px 'JetBrains Mono',monospace;letter-spacing:.16em;text-transform:uppercase}
+.plan-brand img{width:34px;height:34px;object-fit:contain}
+.plan-hero{padding:30px 0 22px}
+.plan-kicker{color:var(--cyan);font:700 10px 'JetBrains Mono',monospace;letter-spacing:.15em;text-transform:uppercase}
+.plan-hero h1{font-size:clamp(34px,10vw,64px);line-height:.96;letter-spacing:-.06em;margin:10px 0 14px}
+.plan-hero p{max-width:500px;color:var(--mut);font-size:14px;line-height:1.55}
+.plan-list{display:grid;gap:12px}
+.plan-card{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 20px;text-decoration:none;color:#fff;background:rgba(255,255,255,.045);border:1px solid var(--line);border-radius:22px;transition:.2s}
+.plan-card:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);transform:translateY(-1px)}
+.plan-card-main{min-width:0}
+.plan-card-title{font-size:16px;font-weight:800;overflow-wrap:anywhere}
+.plan-card-meta{margin-top:6px;color:var(--mut);font:600 11px 'JetBrains Mono',monospace}
+.plan-card-arrow{flex-shrink:0;display:flex;align-items:center;gap:8px;color:var(--lime);font:800 11px 'JetBrains Mono',monospace;text-transform:uppercase}
+.plan-empty{padding:28px;text-align:center;color:var(--mut);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:22px}
+.plan-route-back{display:inline-flex;align-items:center;gap:6px;margin-bottom:14px;color:var(--mut);font:700 11px 'JetBrains Mono',monospace;text-decoration:none}
+.plan-route-back:hover{color:#fff}
+.plan-home-link{display:none;text-decoration:none}
+html:not(.plan-home-route) .plan-home-link{display:inline-flex}
 </style>
 </head>
 <body>
+
+<section id="plan-landing" aria-label="Choose a fee plan">
+  <div class="plan-home">
+    <div class="plan-brand"><img src="./icons/logo.png" alt="FEES"><span>FEES · LIVE SYNC</span></div>
+    <div class="plan-hero">
+      <div class="plan-kicker">Choose a plan</div>
+      <h1>View your<br>fee plan.</h1>
+      <p>Select the fee plan you want to view. Each plan has its own live student list, payment status, history, and receipt records.</p>
+    </div>
+    <div id="plan-list" class="plan-list"><div class="plan-empty">Loading available plans…</div></div>
+    <div class="text-center text-[10px] font-mono pt-8 space-y-2" style="color:var(--mut)"><div>Students can view records without admin access.</div><a href="/?app=1" style="color:var(--mut);text-decoration:underline">Open admin app</a></div>
+  </div>
+</section>
 
 <header class="sticky top-0 z-30 backdrop-blur-xl bg-black/75 border-b border-white/10" style="padding-top:env(safe-area-inset-top)">
   <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
@@ -237,6 +273,7 @@ nav button.on { background: #fff; color: #000; }
     </div>
     
     <div class="flex items-center gap-2 shrink-0">
+      <a id="plan-home-link" class="plan-home-link btn b-ghost !py-1.5 !px-3 text-xs shrink-0" href="/">Plans</a>
       <select id="plan-select" class="inp !w-auto !py-1.5 text-xs max-w-[110px] sm:max-w-[160px] truncate" onchange="switchPlan(this.value)"></select>
       <button id="btn-install" type="button" class="btn b-ghost !py-1.5 !px-3 text-xs shrink-0 hide" onclick="installApp()">Install</button>
       <button id="btn-admin-lock" type="button" class="btn b-lime !py-1.5 !px-3 text-xs shrink-0" onclick="toggleAdminLock()">Admin</button>
@@ -740,6 +777,33 @@ let rosterFilter = 'ALL';
 let camStream = null;
 const pendingReceipts = new Map();
 const activePlan = () => plans.find(p => p.id === activeId) || plans[0];
+const routeSlug = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, '')).toLowerCase();
+const isPlanHome = !routeSlug && !/[?&]app=1(?:&|$)/.test(location.search);
+function planSlug(p) {
+  const base = String((p && p.title) || (p && p.id) || 'plan').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'plan';
+  const duplicates = plans.filter(x => String(x.title || x.id).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') === base);
+  if (duplicates.length > 1) return `${base}-${String(p.id || 'plan').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  return base;
+}
+function planUrl(p) { return '/' + planSlug(p); }
+function applyPlanRoute() {
+  if (!routeSlug || routeSlug === 'app') return;
+  const match = plans.find(p => planSlug(p) === routeSlug);
+  if (match) {
+    activeId = match.id;
+    try { localStorage.setItem('fees_app_active_plan', match.id); } catch (e) {}
+    document.title = `${match.title} · FEES`;
+  }
+}
+function renderPlanLanding() {
+  const el = $('plan-list');
+  if (!el || !isPlanHome) return;
+  if (!plans.length) { el.innerHTML = '<div class="plan-empty">No fee plans are available yet.</div>'; return; }
+  el.innerHTML = plans.map(p => `<a class="plan-card" href="${planUrl(p)}">
+    <span class="plan-card-main"><span class="plan-card-title">${esc(p.title)}</span><span class="plan-card-meta">${inr(p.target)} per student${p.officer ? ' · ' + esc(p.officer) : ''}</span></span>
+    <span class="plan-card-arrow">View <span aria-hidden="true">→</span></span>
+  </a>`).join('');
+}
 const numId = r => +String(r.id || '').replace(/\D/g, '') || 0;
 function normalizeReceipt(r) {
   if (!r || !/^REC-\d+$/.test(String(r.id || ''))) return null;
@@ -881,10 +945,11 @@ F.child('plans').on('value', snap => {
   const v = snap.val();
   if (v != null) {
     plans = Object.values(v).filter(p => p && p.id && p.title && p.target > 0);
+    applyPlanRoute();
     sv('fees_app_plans', plans);
     if (!plans.some(p => p.id === activeId)) activeId = plans[0].id;
   }
-  markLoaded('plans'); schedulePaint();
+  renderPlanLanding(); markLoaded('plans'); schedulePaint();
 });
 
 // Receipts (keyed by receipt id). First run: upload anything saved on this device.
@@ -933,12 +998,14 @@ async function refreshLiveData() {
     const [students, nextPlans, nextReceipts, nextCounter, nextHandovers, nextSettled] = await Promise.all(responses.map(r => r.json()));
     R = Object.values(students || {}).filter(x => x && Number.isInteger(x.sl) && typeof x.name === 'string').sort((a, b) => a.sl - b.sl);
     plans = Object.values(nextPlans || {}).filter(p => p && p.id && p.title && p.target > 0);
+    applyPlanRoute();
     if (!plans.some(p => p.id === activeId) && plans[0]) activeId = plans[0].id;
     applyLiveReceipts(nextReceipts);
     counter = Number(nextCounter) || 1001;
     handovers = Object.values(nextHandovers || {}).filter(Boolean).sort((a, b) => (b.ts || 0) - (a.ts || 0));
     settled = nextSettled || {};
     sv('fees_app_students_custom', R); sv('fees_app_plans', plans);
+    renderPlanLanding();
     syncCounterFloor();
     Object.keys(loaded).forEach(k => { loaded[k] = true; });
     schedulePaint();
@@ -2899,6 +2966,8 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 
+applyPlanRoute();
+renderPlanLanding();
 paintApp();
 </script>
 </body>
