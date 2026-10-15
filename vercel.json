@@ -1,11 +1,10 @@
 {
   "cleanUrls": true,
-  "rewrites": [
-    {
-      "source": "/:plan((?!api|verify|sw\\.js|manifest\\.webmanifest|tailwind\\.css|icons|vendor)[a-z0-9-]+)",
-      "destination": "/index.html"
-    }
-  ],
+  "rewrites": {
+    "fallback": [
+      { "source": "/:path*", "destination": "/index.html" }
+    ]
+  },
   "headers": [
     {
       "source": "/(.*)",
